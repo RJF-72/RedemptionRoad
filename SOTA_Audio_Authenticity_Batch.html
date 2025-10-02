@@ -17,6 +17,7 @@
     th { text-align:left; color:#9ee; }
     .ok { color:#64ffda; }
     .err { color:#ff6b6b; }
+    .controls { display:flex; gap:16px; align-items:center; margin: 12px 0; flex-wrap:wrap; }
   </style>
   <script src="./config.js"></script>
   <script>
@@ -30,26 +31,44 @@
       if(!r.ok) throw new Error(j.error || 'request failed');
       return j;
     }
+    function stripExt(name){
+      const i = name.lastIndexOf('.');
+      return i > 0 ? name.slice(0, i) : name;
+    }
     function mapByName(fileList) {
       const m = new Map();
-      for(const f of fileList) m.set(f.name.toLowerCase(), f);
+      for(const f of fileList) m.set(stripExt(f.name).toLowerCase(), f);
       return m;
     }
     async function runBatch() {
       const refs = document.getElementById('refs').files;
       const cands = document.getElementById('cands').files;
+      const mode = document.getElementById('mode').value; // filename | index
       if(!refs.length || !cands.length) { alert('Select both reference and candidate files (multiple).'); return; }
-      const refMap = mapByName(refs);
-      const candMap = mapByName(cands);
-      const names = [...new Set([...refMap.keys()].filter(n => candMap.has(n)))];
-      const tbody = document.getElementById('tbody');
-      tbody.innerHTML = '';
-      for(const name of names) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+      let pairs = [];
+      if(mode === 'filename'){
+        const refMap = mapByName(refs);
+        const candMap = mapByName(cands);
+        const names = [...new Set([...refMap.keys()].filter(n => candMap.has(n)))].sort();
+        pairs = names.map(n => ({ name:n, ref: refMap.get(n), cand: candMap.get(n) }));
+      } else {
+        // index mode: sort by name for determinism, then pair up to min length
+        const ra = Array.from(refs).sort((a,b)=>a.name.localeCompare(b.name));
+        const ca = Array.from(cands).sort((a,b)=>a.name.localeCompare(b.name));
+        const L = Math.min(ra.length, ca.length);
+        for(let i=0;i<L;i++) pairs.push({ name: `${ra[i].name} ⇄ ${ca[i].name}`, ref: ra[i], cand: ca[i] });
+      }
+      // progress
+      const summary = document.getElementById('summary');
+      summary.textContent = `Comparing ${pairs.length} pair(s) in ${mode} mode...`;
+  for(const {name, ref, cand} of pairs) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${name}</td><td>…</td><td>…</td><td>…</td><td>…</td>`;
         tbody.appendChild(tr);
         try{
-          const res = await comparePair(refMap.get(name), candMap.get(name));
+          const res = await comparePair(ref, cand);
           tr.children[1].textContent = res.authenticity_percent + '%';
           tr.children[2].textContent = res.similarity.dtw_based;
           tr.children[3].textContent = res.similarity.centroid_corr;
@@ -63,6 +82,7 @@
           tr.classList.add('err');
         }
       }
+      summary.textContent = `Done. Computed ${pairs.length} pair(s).`;
     }
   </script>
 </head>
@@ -73,14 +93,22 @@
       <div class="row">
         <div>
           <label>Reference files (select multiple):</label><br/>
-          <input id="refs" type="file" accept="audio/*" multiple />
+          <input id="refs" type="file" accept="audio/*" multiple webkitdirectory directory />
         </div>
         <div>
           <label>Candidate files (select multiple):</label><br/>
-          <input id="cands" type="file" accept="audio/*" multiple />
+          <input id="cands" type="file" accept="audio/*" multiple webkitdirectory directory />
         </div>
       </div>
-      <button class="btn" onclick="runBatch()">Run Batch</button>
+      <div class="controls">
+        <label>Matching:</label>
+        <select id="mode">
+          <option value="filename" selected>By filename (extension-insensitive)</option>
+          <option value="index">By index (sorted by name)</option>
+        </select>
+        <button class="btn" onclick="runBatch()">Run Batch</button>
+        <span id="summary"></span>
+      </div>
       <table>
         <thead>
           <tr><th>Filename (matched)</th><th>Authenticity %</th><th>DTW-based</th><th>Centroid Corr</th><th>DTW Raw / Error</th></tr>
