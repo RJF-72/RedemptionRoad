@@ -10,25 +10,40 @@ from video_pipeline import build_music_video
 import io
 import wave
 import numpy as np
+from pydub import AudioSegment
 
-def _read_wav_bytes(b: bytes) -> tuple[np.ndarray, int]:
-    with wave.open(io.BytesIO(b), 'rb') as w:
-        sr = w.getframerate()
-        n = w.getnframes()
-        ch = w.getnchannels()
-        sampwidth = w.getsampwidth()
-        frames = w.readframes(n)
-    # decode PCM
-    dtype = {1: np.int8, 2: np.int16, 4: np.int32}.get(sampwidth)
-    if dtype is None:
-        raise ValueError(f"Unsupported sample width: {sampwidth}")
-    audio = np.frombuffer(frames, dtype=dtype).astype(np.float32)
-    if ch > 1:
-        audio = audio.reshape(-1, ch).mean(axis=1)
-    # normalize to [-1,1]
-    maxv = np.max(np.abs(audio)) or 1.0
-    audio = audio / maxv
-    return audio, sr
+def _read_audio_bytes(b: bytes) -> tuple[np.ndarray, int]:
+    # Try fast WAV path first
+    try:
+        with wave.open(io.BytesIO(b), 'rb') as w:
+            sr = w.getframerate()
+            n = w.getnframes()
+            ch = w.getnchannels()
+            sampwidth = w.getsampwidth()
+            frames = w.readframes(n)
+        dtype = {1: np.int8, 2: np.int16, 4: np.int32}.get(sampwidth)
+        if dtype is None:
+            raise ValueError("Unsupported sample width")
+        audio = np.frombuffer(frames, dtype=dtype).astype(np.float32)
+        if ch > 1:
+            audio = audio.reshape(-1, ch).mean(axis=1)
+        maxv = np.max(np.abs(audio)) or 1.0
+        audio = audio / maxv
+        return audio, sr
+    except Exception:
+        # Fallback: decode with pydub (supports mp3, flac, ogg, etc.)
+        seg = AudioSegment.from_file(io.BytesIO(b))
+        sr = seg.frame_rate
+        ch = seg.channels
+        samples = np.array(seg.get_array_of_samples(), dtype=np.float32)
+        if ch > 1:
+            samples = samples.reshape(-1, ch).mean(axis=1)
+        # normalize to [-1,1] based on sample width
+        max_possible = float(1 << (8 * seg.sample_width - 1))
+        audio = (samples / max_possible).astype(np.float32)
+        maxv = np.max(np.abs(audio)) or 1.0
+        audio = audio / maxv
+        return audio, sr
 
 def _frame_signal(x: np.ndarray, sr: int, win_ms: float = 25.0, hop_ms: float = 10.0):
     win = int(sr * win_ms / 1000.0)
@@ -110,8 +125,8 @@ def _dtw_distance(A: np.ndarray, B: np.ndarray) -> float:
 
 def audio_authenticity_score(wav_a: bytes, wav_b: bytes) -> dict:
     try:
-        xa, sra = _read_wav_bytes(wav_a)
-        xb, srb = _read_wav_bytes(wav_b)
+        xa, sra = _read_audio_bytes(wav_a)
+        xb, srb = _read_audio_bytes(wav_b)
     except Exception as e:
         return {"error": f"Invalid WAV input: {e}"}
     # Simple resample guard: if rates differ, trim or stretch by naive repeat (avoid scipy dep)
