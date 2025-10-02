@@ -5,6 +5,21 @@
   # No build command for a static site; add one if you later pre-process assets.
   command = ""
 
+# Canonical host + HTTPS: redirect www and Netlify subdomain to apex
+[[redirects]]
+  from = "/*"
+  to = "https://redemptionrd.shop/:splat"
+  status = 301
+  force = true
+  conditions = { Host = ["www.redemptionrd.shop", "redemptionrd.netlify.app"] }
+
+# Ensure HTTP apex redirects to HTTPS apex
+[[redirects]]
+  from = "http://redemptionrd.shop/*"
+  to = "https://redemptionrd.shop/:splat"
+  status = 301
+  force = true
+
 # Proxy frontend /api/* to your backend. Update the to = URL to your deployed FastAPI origin.
 [[redirects]]
   from = "/api/*"
@@ -20,4 +35,5 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     Content-Security-Policy = "default-src 'self' https:; img-src 'self' data: https:; media-src 'self' blob: data: https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' https:; connect-src 'self' https: http: blob: data:"
