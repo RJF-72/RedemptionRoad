@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Batch Audio Authenticity Checker</title>
+  <style>
+    body { background:#0a0f1a; color:#e6f1ff; font-family: JetBrains Mono, monospace; margin:0; }
+    .container { max-width: 1100px; margin: 40px auto; padding: 24px; }
+    h1 { color:#64ffda; text-shadow:0 0 12px rgba(100,255,218,.5); }
+    .card { background:#0f1726; border:1px solid #1f2a44; border-radius:12px; padding:20px; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; margin:12px 0; }
+    .btn { background:#64ffda; color:#001219; padding:10px 16px; border:none; border-radius:8px; cursor:pointer; font-weight:700; }
+    input[type="file"] { background:#0a1324; border:1px dashed #24324d; color:#bcd; padding:10px; border-radius:8px; }
+    table { width:100%; border-collapse: collapse; margin-top:16px; }
+    th, td { border-bottom:1px solid #1f2a44; padding:8px; font-size:12px; }
+    th { text-align:left; color:#9ee; }
+    .ok { color:#64ffda; }
+    .err { color:#ff6b6b; }
+  </style>
+  <script src="./config.js"></script>
+  <script>
+    async function comparePair(refFile, candFile) {
+      const fd = new FormData();
+      fd.append('reference', refFile);
+      fd.append('candidate', candFile);
+      const base = (window.SOTA_BACKEND_URL || '');
+      const r = await fetch(base + '/api/audio/authenticity', { method:'POST', body: fd });
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.error || 'request failed');
+      return j;
+    }
+    function mapByName(fileList) {
+      const m = new Map();
+      for(const f of fileList) m.set(f.name.toLowerCase(), f);
+      return m;
+    }
+    async function runBatch() {
+      const refs = document.getElementById('refs').files;
+      const cands = document.getElementById('cands').files;
+      if(!refs.length || !cands.length) { alert('Select both reference and candidate files (multiple).'); return; }
+      const refMap = mapByName(refs);
+      const candMap = mapByName(cands);
+      const names = [...new Set([...refMap.keys()].filter(n => candMap.has(n)))];
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      for(const name of names) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${name}</td><td>…</td><td>…</td><td>…</td><td>…</td>`;
+        tbody.appendChild(tr);
+        try{
+          const res = await comparePair(refMap.get(name), candMap.get(name));
+          tr.children[1].textContent = res.authenticity_percent + '%';
+          tr.children[2].textContent = res.similarity.dtw_based;
+          tr.children[3].textContent = res.similarity.centroid_corr;
+          tr.children[4].textContent = res.dtw_raw;
+          tr.classList.add('ok');
+        }catch(e){
+          tr.children[1].textContent = 'error';
+          tr.children[2].textContent = '-';
+          tr.children[3].textContent = '-';
+          tr.children[4].textContent = e.message;
+          tr.classList.add('err');
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Batch Audio Authenticity Checker</h1>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Reference files (select multiple):</label><br/>
+          <input id="refs" type="file" accept="audio/*" multiple />
+        </div>
+        <div>
+          <label>Candidate files (select multiple):</label><br/>
+          <input id="cands" type="file" accept="audio/*" multiple />
+        </div>
+      </div>
+      <button class="btn" onclick="runBatch()">Run Batch</button>
+      <table>
+        <thead>
+          <tr><th>Filename (matched)</th><th>Authenticity %</th><th>DTW-based</th><th>Centroid Corr</th><th>DTW Raw / Error</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
