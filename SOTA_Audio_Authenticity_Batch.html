@@ -21,10 +21,11 @@
   </style>
   <script src="./config.js"></script>
   <script>
-    async function comparePair(refFile, candFile) {
+    async function comparePair(refFile, candFile, profile) {
       const fd = new FormData();
       fd.append('reference', refFile);
       fd.append('candidate', candFile);
+      fd.append('profile', profile || 'general');
       const base = (window.SOTA_BACKEND_URL || '');
       const r = await fetch(base + '/api/audio/authenticity', { method:'POST', body: fd });
       const j = await r.json();
@@ -41,9 +42,10 @@
       return m;
     }
     async function runBatch() {
-      const refs = document.getElementById('refs').files;
-      const cands = document.getElementById('cands').files;
-      const mode = document.getElementById('mode').value; // filename | index
+  const refs = document.getElementById('refs').files;
+  const cands = document.getElementById('cands').files;
+  const mode = document.getElementById('mode').value; // filename | index | cross
+  const profile = document.getElementById('profile').value;
       if(!refs.length || !cands.length) { alert('Select both reference and candidate files (multiple).'); return; }
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
@@ -53,25 +55,34 @@
         const candMap = mapByName(cands);
         const names = [...new Set([...refMap.keys()].filter(n => candMap.has(n)))].sort();
         pairs = names.map(n => ({ name:n, ref: refMap.get(n), cand: candMap.get(n) }));
-      } else {
+      } else if(mode === 'index') {
         // index mode: sort by name for determinism, then pair up to min length
         const ra = Array.from(refs).sort((a,b)=>a.name.localeCompare(b.name));
         const ca = Array.from(cands).sort((a,b)=>a.name.localeCompare(b.name));
         const L = Math.min(ra.length, ca.length);
         for(let i=0;i<L;i++) pairs.push({ name: `${ra[i].name} ⇄ ${ca[i].name}`, ref: ra[i], cand: ca[i] });
+      } else {
+        // cross product mode: every ref against every cand
+        const ra = Array.from(refs).sort((a,b)=>a.name.localeCompare(b.name));
+        const ca = Array.from(cands).sort((a,b)=>a.name.localeCompare(b.name));
+        for(const rf of ra){
+          for(const cf of ca){
+            pairs.push({ name: `${rf.name} ⇄ ${cf.name}`, ref: rf, cand: cf });
+          }
+        }
       }
       // progress
       const summary = document.getElementById('summary');
       summary.textContent = `Comparing ${pairs.length} pair(s) in ${mode} mode...`;
-  for(const {name, ref, cand} of pairs) {
+      for(const {name, ref, cand} of pairs) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${name}</td><td>…</td><td>…</td><td>…</td><td>…</td>`;
         tbody.appendChild(tr);
         try{
-          const res = await comparePair(ref, cand);
+          const res = await comparePair(ref, cand, profile);
           tr.children[1].textContent = res.authenticity_percent + '%';
           tr.children[2].textContent = res.similarity.dtw_based;
-          tr.children[3].textContent = res.similarity.centroid_corr;
+          tr.children[3].textContent = res.similarity.centroid_corr + (res.similarity.chroma_cosine !== undefined ? ` | chroma ${res.similarity.chroma_cosine}` : '');
           tr.children[4].textContent = res.dtw_raw;
           tr.classList.add('ok');
         }catch(e){
@@ -105,6 +116,12 @@
         <select id="mode">
           <option value="filename" selected>By filename (extension-insensitive)</option>
           <option value="index">By index (sorted by name)</option>
+          <option value="cross">Cross compare (every vs every)</option>
+        </select>
+        <label>Profile:</label>
+        <select id="profile">
+          <option value="melodic" selected>Melodic (guitar, piano)</option>
+          <option value="general">General</option>
         </select>
         <button class="btn" onclick="runBatch()">Run Batch</button>
         <span id="summary"></span>

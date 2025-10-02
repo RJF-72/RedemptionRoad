@@ -47,6 +47,13 @@
         </div>
       </div>
       <button id="run" class="btn">Compare</button>
+      <div style="margin-top:8px;">
+        <label>Profile:</label>
+        <select id="profile">
+          <option value="melodic" selected>Melodic (guitar, piano)</option>
+          <option value="general">General</option>
+        </select>
+      </div>
       <div id="out" class="result" style="display:none;"></div>
     </div>
   </div>
@@ -63,6 +70,7 @@
         const fd = new FormData();
         fd.append('reference', ref);
         fd.append('candidate', cand);
+        fd.append('profile', document.getElementById('profile').value);
         const base = (window.SOTA_BACKEND_URL || '');
         const resp = await fetch(base + '/api/audio/authenticity', { method:'POST', body: fd });
         const data = await resp.json();

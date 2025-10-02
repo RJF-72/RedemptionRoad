@@ -123,7 +123,26 @@ def _dtw_distance(A: np.ndarray, B: np.ndarray) -> float:
             D[i, j] = cost + min(D[i - 1, j], D[i, j - 1], D[i - 1, j - 1])
     return float(D[n, m] / (n + m))
 
-def audio_authenticity_score(wav_a: bytes, wav_b: bytes) -> dict:
+def _chroma_from_ps(ps: np.ndarray, sr: int) -> np.ndarray:
+    # ps: (frames, n_bins), freqs 0..sr/2
+    freqs = np.linspace(0, sr/2, ps.shape[1], dtype=np.float32)
+    valid = freqs > 0
+    freqs = freqs[valid]
+    if len(freqs) == 0:
+        return np.zeros((ps.shape[0], 12), dtype=np.float32)
+    midi = 69.0 + 12.0 * np.log2(freqs / 440.0)
+    bins = (np.round(midi) % 12).astype(int)
+    chroma = np.zeros((ps.shape[0], 12), dtype=np.float32)
+    for ci in range(12):
+        mask = (bins == ci)
+        if mask.any():
+            chroma[:, ci] = ps[:, valid][:, mask].sum(axis=1)
+    # normalize per-frame
+    chroma = chroma + 1e-9
+    chroma = chroma / chroma.sum(axis=1, keepdims=True)
+    return chroma
+
+def audio_authenticity_score(wav_a: bytes, wav_b: bytes, profile: str = "general") -> dict:
     try:
         xa, sra = _read_audio_bytes(wav_a)
         xb, srb = _read_audio_bytes(wav_b)
@@ -166,15 +185,36 @@ def audio_authenticity_score(wav_a: bytes, wav_b: bytes) -> dict:
     # Heuristic scaling: dtw ~ 0..50 typical; clamp
     sim_dtw = max(0.0, min(1.0, 1.0 - (dtw / 50.0)))
     sim_corr = (corr + 1.0) / 2.0
-    sim = 0.7 * sim_dtw + 0.3 * sim_corr
-    return {
+    # Optional chroma similarity for melodic content (e.g., guitars/pianos)
+    sim_chroma = None
+    if profile.lower() == "melodic":
+        # reuse frames/spectrum to build chroma
+        frames_a = _frame_signal(xa, sra)
+        ps_a = _power_spectrum(frames_a)
+        frames_b = _frame_signal(xb, srb)
+        ps_b = _power_spectrum(frames_b)
+        ca = _chroma_from_ps(ps_a, sra).mean(axis=0)
+        cb = _chroma_from_ps(ps_b, srb).mean(axis=0)
+        # cosine similarity in [0,1]
+        na = np.linalg.norm(ca) + 1e-9
+        nb = np.linalg.norm(cb) + 1e-9
+        sim_chroma = float(np.dot(ca, cb) / (na * nb))
+        sim_chroma = max(0.0, min(1.0, sim_chroma))
+        sim = 0.6 * sim_dtw + 0.2 * sim_corr + 0.2 * sim_chroma
+    else:
+        sim = 0.7 * sim_dtw + 0.3 * sim_corr
+    result = {
         "authenticity_percent": round(float(sim * 100.0), 2),
         "similarity": {
             "dtw_based": round(float(sim_dtw), 4),
             "centroid_corr": round(float(sim_corr), 4)
         },
-        "dtw_raw": round(float(dtw), 4)
+        "dtw_raw": round(float(dtw), 4),
+        "profile": profile
     }
+    if sim_chroma is not None:
+        result["similarity"]["chroma_cosine"] = round(float(sim_chroma), 4)
+    return result
 
 app = FastAPI()
 # In dev we allow any origin; for production replace with specific domain(s)
@@ -247,11 +287,12 @@ if __name__ == '__main__':
 @app.post('/api/audio/authenticity')
 async def api_audio_authenticity(
     reference: UploadFile = File(...),
-    candidate: UploadFile = File(...)
+    candidate: UploadFile = File(...),
+    profile: str = Form("general")
 ):
     ref_bytes = await reference.read()
     cand_bytes = await candidate.read()
-    result = audio_authenticity_score(ref_bytes, cand_bytes)
+    result = audio_authenticity_score(ref_bytes, cand_bytes, profile=profile)
     if "error" in result:
         return JSONResponse(result, status_code=400)
     return result
