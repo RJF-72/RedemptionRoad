@@ -12,6 +12,10 @@
 
 Looking for hands-on steps? See: [How to Use the Suite](./HOW_TO_USE.md)
 
+Planning & goals
+- [Product Roadmap (Q4 2025–2026)](./ROADMAP.md)
+- [OKRs (Q4 2025–2026)](./OKRS.md)
+
 ### System Requirements
 - **OS**: Windows 10/11, macOS 10.15+, Linux Ubuntu 18.04+
 - **RAM**: 16GB minimum, 32GB recommended

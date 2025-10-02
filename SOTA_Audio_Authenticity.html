@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOTA Audio Authenticity Checker</title>
+  <style>
+    body { background: #0a0f1a; color: #e6f1ff; font-family: JetBrains Mono, monospace; margin: 0; }
+    .container { max-width: 900px; margin: 40px auto; padding: 24px; }
+    h1 { color: #64ffda; text-shadow: 0 0 12px rgba(100,255,218,.5); }
+    .card { background:#0f1726; border:1px solid #1f2a44; border-radius:12px; padding:20px; box-shadow:0 0 20px rgba(100,255,218,.08) inset; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; margin:12px 0; }
+    .btn { background:#64ffda; color:#001219; padding:10px 16px; border:none; border-radius:8px; cursor:pointer; font-weight:700; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    input[type="file"] { background:#0a1324; border:1px dashed #24324d; color:#bcd; padding:10px; border-radius:8px; }
+    .result { background:#06101f; border:1px solid #173; padding:12px; border-radius:8px; margin-top:16px; }
+    a { color:#64ffda; }
+    nav { background:#070b14; border-bottom:1px solid #16233a; padding:12px 0; }
+    nav .inner { max-width: 1000px; margin: 0 auto; display:flex; align-items:center; gap:16px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="inner">
+      <a href="./index.html">Home</a>
+      <a href="./SOTA_Music_Video_Generator.html">Music Video</a>
+      <a href="./SOTA_Marketing_Video_Creator.html">Marketing Video</a>
+      <a href="./SOTA_Script_To_Video_Engine.html">Script→Video</a>
+      <a href="./synthesizer.html">Synth</a>
+      <a href="./daw.html">DAW</a>
+      <a href="./voice.html">Voice</a>
+      <a href="./HOW_TO_USE.md" target="_blank" rel="noopener">Docs</a>
+    </div>
+  </nav>
+  <div class="container">
+    <h1>Audio Authenticity Checker</h1>
+    <p>Upload a reference WAV (human performance) and a candidate WAV (intelligent instrument output). We’ll compute an authenticity percentage (0–100) using MFCC + DTW similarity and spectral centroid correlation. CPU-only friendly.</p>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Reference WAV:</label><br />
+          <input id="ref" type="file" accept="audio/wav" />
+        </div>
+        <div>
+          <label>Candidate WAV:</label><br />
+          <input id="cand" type="file" accept="audio/wav" />
+        </div>
+      </div>
+      <button id="run" class="btn">Compare</button>
+      <div id="out" class="result" style="display:none;"></div>
+    </div>
+  </div>
+  <script src="./config.js"></script>
+  <script>
+    const btn = document.getElementById('run');
+    const out = document.getElementById('out');
+    btn.addEventListener('click', async () => {
+      const ref = document.getElementById('ref').files[0];
+      const cand = document.getElementById('cand').files[0];
+      if(!ref || !cand){ alert('Please select both WAV files.'); return; }
+      btn.disabled = true; out.style.display = 'block'; out.textContent = 'Computing...';
+      try{
+        const fd = new FormData();
+        fd.append('reference', ref);
+        fd.append('candidate', cand);
+        const base = (window.SOTA_BACKEND_URL || '');
+        const resp = await fetch(base + '/api/audio/authenticity', { method:'POST', body: fd });
+        const data = await resp.json();
+        if(!resp.ok){ throw new Error(data.error || 'Request failed'); }
+        out.innerHTML = `
+          <strong>Authenticity:</strong> ${data.authenticity_percent}%<br/>
+          <strong>Similarity (DTW-based):</strong> ${data.similarity.dtw_based}<br/>
+          <strong>Similarity (Centroid Corr):</strong> ${data.similarity.centroid_corr}<br/>
+          <em>DTW raw:</em> ${data.dtw_raw}
+        `;
+      }catch(e){
+        out.textContent = 'Error: ' + e.message;
+      }finally{
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
