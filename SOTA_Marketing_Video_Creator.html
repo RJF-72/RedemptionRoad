@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOTA Marketing Video Creator - Sub-90 Second Promotional Content Generator</title>
+    <script src="config.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
         
@@ -1326,7 +1327,9 @@
         }
 
         // 🚀 VIDEO GENERATION (real backend)
-        const BACKEND_URL = window.SOTA_BACKEND_URL || 'http://localhost:8000';
+                const BACKEND_URL = (typeof window !== 'undefined' && window.SOTA_BACKEND_URL !== undefined)
+                    ? window.SOTA_BACKEND_URL
+                    : '';
 
         async function generateVideo() {
             if (!selectedTemplate) {

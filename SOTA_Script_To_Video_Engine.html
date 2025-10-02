@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOTA Script-to-Video Engine - AI-Powered Video Generation from Scripts</title>
+    <script src="config.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
         
@@ -931,6 +932,10 @@ Use clear scene markers, timing, and detailed descriptions for best AI interpret
     </main>
 
     <script>
+        // Centralized backend URL (via config.js). Defaults to same-origin for Netlify proxy.
+        const BACKEND_URL = (typeof window !== 'undefined' && window.SOTA_BACKEND_URL !== undefined)
+            ? window.SOTA_BACKEND_URL
+            : '';
         // 📝 SOTA Script-to-Video Engine JavaScript
         let currentScriptType = 'narrative';
         let currentGenerationStyle = 'realistic';
