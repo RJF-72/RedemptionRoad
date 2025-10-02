@@ -21,6 +21,7 @@
   </style>
   <script src="./config.js"></script>
   <script>
+    let results = [];
     async function comparePair(refFile, candFile, profile) {
       const fd = new FormData();
       fd.append('reference', refFile);
@@ -49,6 +50,7 @@
       if(!refs.length || !cands.length) { alert('Select both reference and candidate files (multiple).'); return; }
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
+  results = [];
       let pairs = [];
       if(mode === 'filename'){
         const refMap = mapByName(refs);
@@ -85,6 +87,15 @@
           tr.children[3].textContent = res.similarity.centroid_corr + (res.similarity.chroma_cosine !== undefined ? ` | chroma ${res.similarity.chroma_cosine}` : '');
           tr.children[4].textContent = res.dtw_raw;
           tr.classList.add('ok');
+          results.push({
+            name,
+            authenticity_percent: res.authenticity_percent,
+            dtw_based: res.similarity.dtw_based,
+            centroid_corr: res.similarity.centroid_corr,
+            chroma_cosine: res.similarity.chroma_cosine ?? '',
+            dtw_raw: res.dtw_raw,
+            profile: res.profile
+          });
         }catch(e){
           tr.children[1].textContent = 'error';
           tr.children[2].textContent = '-';
@@ -94,6 +105,24 @@
         }
       }
       summary.textContent = `Done. Computed ${pairs.length} pair(s).`;
+    }
+
+    function downloadCSV(){
+      if(!results.length){ alert('No results yet. Run Batch first.'); return; }
+      const headers = ['name','authenticity_percent','dtw_based','centroid_corr','chroma_cosine','dtw_raw','profile'];
+      const lines = [headers.join(',')];
+      for(const r of results){
+        lines.push(headers.map(h => String(r[h]).replace(/"/g,'""')).map(v => /[,\n]/.test(v)?`"${v}"`:v).join(','));
+      }
+      const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'authenticity_results.csv';
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
     }
   </script>
 </head>
@@ -124,6 +153,7 @@
           <option value="general">General</option>
         </select>
         <button class="btn" onclick="runBatch()">Run Batch</button>
+        <button class="btn" onclick="downloadCSV()">Download CSV</button>
         <span id="summary"></span>
       </div>
       <table>
