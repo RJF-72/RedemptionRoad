@@ -201,6 +201,42 @@ def audio_authenticity_score(wav_a: bytes, wav_b: bytes, profile: str = "general
         sim_chroma = float(np.dot(ca, cb) / (na * nb))
         sim_chroma = max(0.0, min(1.0, sim_chroma))
         sim = 0.6 * sim_dtw + 0.2 * sim_corr + 0.2 * sim_chroma
+    elif profile.lower() == "percussive":
+        # Percussive weighting: spectral flux and envelope similarity
+        def _spectral_flux(x, sr):
+            fr = _frame_signal(x, sr)
+            ps = _power_spectrum(fr)
+            # L2 diff between consecutive magnitude spectra
+            d = np.diff(ps, axis=0)
+            d = np.maximum(d, 0)
+            flux = np.sqrt((d**2).sum(axis=1))
+            if len(flux) < 2:
+                return np.zeros(1, dtype=np.float32)
+            # normalize
+            flux = (flux - flux.mean()) / (flux.std() + 1e-6)
+            return flux
+        def _envelope(x, sr):
+            # RMS over frames
+            fr = _frame_signal(x, sr)
+            rms = np.sqrt((fr**2).mean(axis=1) + 1e-9)
+            rms = (rms - rms.mean()) / (rms.std() + 1e-6)
+            return rms
+        fa_flux = _spectral_flux(xa, sra)
+        fb_flux = _spectral_flux(xb, srb)
+        # align lengths
+        Lf = min(len(fa_flux), len(fb_flux))
+        fa_flux = fa_flux[:Lf]; fb_flux = fb_flux[:Lf]
+        flux_corr = float(np.corrcoef(fa_flux, fb_flux)[0,1]) if Lf > 2 else 0.0
+        flux_corr = max(-1.0, min(1.0, flux_corr))
+        flux_sim = (flux_corr + 1.0) / 2.0
+        fa_env = _envelope(xa, sra)
+        fb_env = _envelope(xb, srb)
+        Le = min(len(fa_env), len(fb_env))
+        fa_env = fa_env[:Le]; fb_env = fb_env[:Le]
+        env_corr = float(np.corrcoef(fa_env, fb_env)[0,1]) if Le > 2 else 0.0
+        env_corr = max(-1.0, min(1.0, env_corr))
+        env_sim = (env_corr + 1.0) / 2.0
+        sim = 0.6 * sim_dtw + 0.25 * flux_sim + 0.15 * env_sim
     else:
         sim = 0.7 * sim_dtw + 0.3 * sim_corr
     result = {
@@ -214,6 +250,9 @@ def audio_authenticity_score(wav_a: bytes, wav_b: bytes, profile: str = "general
     }
     if sim_chroma is not None:
         result["similarity"]["chroma_cosine"] = round(float(sim_chroma), 4)
+    if profile.lower() == "percussive":
+        result["similarity"]["spectral_flux_corr"] = round(float((flux_corr+1.0)/2.0), 4) if 'flux_corr' in locals() else None
+        result["similarity"]["envelope_corr"] = round(float((env_corr+1.0)/2.0), 4) if 'env_corr' in locals() else None
     return result
 
 app = FastAPI()
