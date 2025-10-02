@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOTA Pricing & Plans</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'JetBrains Mono',monospace;background:linear-gradient(145deg,#070b14 0%,#0a0f1f 40%,#0b1225 100%);color:#e5faff;overflow-x:hidden;min-height:100vh}
+
+  .topnav{background:linear-gradient(135deg,rgba(5,8,12,0.95) 0%,rgba(10,10,15,0.95) 100%);backdrop-filter:blur(40px);border-bottom:2px solid rgba(56,189,248,0.35);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 5px 25px rgba(0,0,0,0.5);position:sticky;top:0;z-index:1001}
+    .brand{display:flex;align-items:center;gap:14px}
+  .brand-badge{width:40px;height:40px;background:linear-gradient(135deg,#06b6d4,#a21caf);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(6,182,212,0.35)}
+  .brand-title{font-size:22px;font-weight:700;background:linear-gradient(135deg,#67e8f9,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .nav-links{display:flex;gap:8px;align-items:center}
+  .nav-link{background:rgba(255,255,255,0.06);border:1px solid rgba(56,189,248,0.35);border-radius:10px;padding:8px 12px;color:#e5faff;font-weight:600;font-size:12px;text-decoration:none;text-transform:uppercase;letter-spacing:1px;transition:.2s}
+  .nav-link:hover{background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.5)}
+  .nav-link.active{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;border-color:rgba(56,189,248,0.5)}
+
+  .hero{background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(168,85,247,0.12));backdrop-filter:blur(20px);padding:28px;border-bottom:2px solid rgba(56,189,248,0.35);position:sticky;top:62px;z-index:1000}
+    .hero-inner{max-width:1600px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .hero-title{font-size:26px;font-weight:800;background:linear-gradient(135deg,#67e8f9,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .hero-sub{color:rgba(229,250,255,0.85)}
+
+    .container{max-width:1600px;margin:24px auto;padding:0 24px}
+    .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+  .plan{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px}
+  .plan.popular{border-color:rgba(56,189,248,0.5);box-shadow:0 8px 30px rgba(56,189,248,0.2)}
+  .plan-title{font-weight:800;color:#67e8f9;font-size:18px}
+  .price{font-size:28px;font-weight:800;color:#e879f9}
+  .per{font-size:12px;color:rgba(229,250,255,0.75)}
+  .features{list-style:none;display:flex;flex-direction:column;gap:8px;margin:8px 0}
+  .features li{font-size:12px;color:rgba(229,250,255,0.85);padding-left:20px;position:relative}
+  .features li:before{content:'✦';position:absolute;left:0;color:#67e8f9}
+
+  .btn{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;border:none;padding:14px;border-radius:12px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;cursor:pointer;transition:all .3s;text-transform:uppercase;letter-spacing:1px;text-align:center;text-decoration:none}
+  .btn:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(6,182,212,0.3)}
+  .btn.secondary{background:transparent;color:#67e8f9;border:1px solid rgba(56,189,248,0.5)}
+
+    .note{margin-top:14px;font-size:12px;color:rgba(255,255,255,0.75)}
+
+  .legal{margin-top:26px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;color:rgba(229,250,255,0.85);font-size:12px}
+
+    @media (max-width:900px){.hero{top:54px}}
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <div class="brand">
+      <div class="brand-badge">💳</div>
+      <div>
+        <div class="brand-title">SOTA Pricing & Plans</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:1px;text-transform:uppercase">Choose your plan and get started</div>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="synthesizer.html">Synthesizer</a>
+      <a class="nav-link" href="daw.html">DAW</a>
+      <a class="nav-link" href="voice.html">Voice</a>
+      <a class="nav-link active" href="pricing.html">Pricing</a>
+      <a class="nav-link" href="contact.html">Contact</a>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-title">Transparent pricing, pro results</div>
+        <div class="hero-sub">Pay safely via PayPal @redemptionseven. Stripe available on request.</div>
+      </div>
+  <div style="color:#67e8f9;font-weight:700">Secure • Licensed • Commercial-Ready</div>
+    </div>
+  </section>
+
+  <div class="container">
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-title">Bronze</div>
+        <div><span class="price">$499</span> <span class="per">one-time</span></div>
+        <ul class="features">
+          <li>WarriorMic AI Enhancement</li>
+          <li>Basic DAW templates</li>
+          <li>Email support</li>
+        </ul>
+        <a class="btn" href="https://paypal.me/redemptionseven/499USD" target="_blank" rel="noopener">Pay with PayPal</a>
+        <div class="note">Instant access after payment confirmation.</div>
+      </div>
+
+      <div class="plan popular">
+        <div class="plan-title">Silver</div>
+        <div><span class="price">$999</span> <span class="per">one-time</span></div>
+        <ul class="features">
+          <li>All Bronze features</li>
+          <li>Synthesizer Pro pack</li>
+          <li>Priority support</li>
+        </ul>
+        <a class="btn" href="https://paypal.me/redemptionseven/999USD" target="_blank" rel="noopener">Pay with PayPal</a>
+        <div class="note">Includes premium presets and templates.</div>
+      </div>
+
+      <div class="plan">
+        <div class="plan-title">Gold</div>
+        <div><span class="price">$1,799</span> <span class="per">one-time</span></div>
+        <ul class="features">
+          <li>All Silver features</li>
+          <li>Titan7 DAW advanced toolkit</li>
+          <li>1:1 onboarding session</li>
+        </ul>
+        <a class="btn" href="https://paypal.me/redemptionseven/1799USD" target="_blank" rel="noopener">Pay with PayPal</a>
+        <div class="note">Best for producers scaling up.</div>
+      </div>
+
+      <div class="plan">
+        <div class="plan-title">Platinum</div>
+        <div><span class="price">$2,999</span> <span class="per">one-time</span></div>
+        <ul class="features">
+          <li>All Gold features</li>
+          <li>Marketing video tools bundle</li>
+          <li>VIP support channel</li>
+        </ul>
+        <a class="btn" href="https://paypal.me/redemptionseven/2999USD" target="_blank" rel="noopener">Pay with PayPal</a>
+        <div class="note">Full creative suite unlocked.</div>
+      </div>
+
+      <div class="plan">
+        <div class="plan-title">Lifetime</div>
+        <div><span class="price">$4,999</span> <span class="per">lifetime license</span></div>
+        <ul class="features">
+          <li>All Platinum features</li>
+          <li>All future updates included</li>
+          <li>Commercial license included</li>
+        </ul>
+        <a class="btn" href="https://paypal.me/redemptionseven/4999USD" target="_blank" rel="noopener">Pay with PayPal</a>
+        <div class="note">One payment. All future upgrades.</div>
+      </div>
+    </div>
+
+    <div class="legal">
+  <strong style="color:#67e8f9">Licensing:</strong> All plans include a SOTA Professional license for purchased components. Commercial usage permitted per plan terms. For Stripe invoices or custom enterprise bundles, contact sales via the Contact page.
+    </div>
+  </div>
+
+  <script>
+    // Optional: add analytics or conversion tracking here
+    console.log('Pricing page loaded. PayPal handle: @redemptionseven');
+  </script>
+</body>
+</html>

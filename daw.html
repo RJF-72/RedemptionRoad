@@ -1,0 +1,2796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titan7 DAW - Revolutionary Visual Concept</title>
+    <style>
+        :root {
+            --ink-1: #070b14;
+            --ink-2: #0a0f1f;
+            --ink-3: #0b1225;
+            --panel: rgba(255, 255, 255, 0.05);
+            --panel-2: rgba(255, 255, 255, 0.08);
+            --line-1: rgba(103, 232, 249, 0.25); /* cyan-300/25 */
+            --line-2: rgba(232, 121, 249, 0.25); /* fuchsia-400/25 */
+            --glow-cyan: 0 0 24px rgba(103, 232, 249, 0.25);
+            --glow-fuchsia: 0 0 24px rgba(232, 121, 249, 0.25);
+            --text: #e2e8f0;
+            --muted: #a8b3cf;
+            --accent-cyan: #22d3ee; /* cyan-400 */
+            --accent-fuchsia: #e879f9; /* fuchsia-400 */
+            --accent-blue: #60a5fa; /* blue-400 */
+            --success: #22c55e; /* green-500 */
+            --danger: #ef4444; /* red-500 */
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(1200px 800px at -10% -10%, rgba(34, 211, 238, 0.06), transparent 40%),
+                        radial-gradient(900px 600px at 110% -10%, rgba(232, 121, 249, 0.06), transparent 40%),
+                        linear-gradient(135deg, var(--ink-1) 0%, var(--ink-2) 50%, var(--ink-3) 100%);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* 🎛️ MAIN DAW INTERFACE */
+        .daw-container {
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            grid-template-areas:
+                "toolbar toolbar toolbar"
+                "sidebar timeline-area transport"
+                "sidebar track-area transport"
+                "sidebar mixer-area effects";
+            grid-template-columns: 300px 1fr 200px;
+            grid-template-rows: 60px 150px 1fr 200px;
+            gap: 2px;
+            background: #000;
+        }
+
+        /* 🔧 TOP TOOLBAR */
+        .toolbar {
+            grid-area: toolbar;
+            background: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(10, 15, 31, 0.85) 100%);
+            border-bottom: 1px solid var(--line-1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 20px;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--text);
+            text-shadow: 0 0 18px rgba(103, 232, 249, 0.25);
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* 🔒 OWNER ACCESS CODE SYSTEM */
+        .owner-access-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .owner-access-panel {
+            background: linear-gradient(135deg, rgba(10, 15, 31, 0.8) 0%, rgba(7, 11, 20, 0.9) 100%);
+            border: 2px solid var(--line-1);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(103, 232, 249, 0.25), 0 0 60px rgba(232, 121, 249, 0.15);
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .owner-access-title {
+            color: var(--text);
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(232, 121, 249, 0.3);
+        }
+        
+        .owner-access-input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--line-1);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 20px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        .owner-access-input:focus {
+            box-shadow: 0 0 22px rgba(103, 232, 249, 0.25);
+            border-color: var(--accent-fuchsia);
+        }
+        
+        .owner-access-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .owner-access-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .owner-access-confirm {
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-fuchsia) 100%);
+            color: #000;
+        }
+        
+        .owner-access-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+        }
+        
+        .owner-access-cancel {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--line-1);
+        }
+        
+        .owner-access-cancel:hover {
+            background: #FFD700;
+            color: #000;
+        }
+        
+        .owner-status-indicator {
+            position: absolute;
+            top: -5px;
+            right: -10px;
+            width: 12px;
+            height: 12px;
+            background: var(--success);
+            border-radius: 50%;
+            display: none;
+            animation: ownerGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes ownerGlow {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        .owner-privileges-active {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.45) !important;
+        }
+
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 15px;
+            border-left: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .toolbar-button {
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            color: var(--text);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .toolbar-button:hover {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(232, 121, 249, 0.25) 100%);
+            color: #fff;
+            box-shadow: 0 0 16px rgba(103, 232, 249, 0.3), 0 0 24px rgba(232, 121, 249, 0.25);
+        }
+
+        /* 🎹 SIDEBAR - SOTA SYNTHESIZER & INSTRUMENTS */
+        .sidebar {
+            grid-area: sidebar;
+            background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(7, 11, 20, 0.85) 100%);
+            border-right: 1px solid var(--line-1);
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+            background: var(--panel);
+            border: 1px solid var(--line-1);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .sidebar-title {
+            color: var(--accent-cyan);
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .instrument-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .instrument-button {
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            color: var(--text);
+            padding: 10px 5px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .instrument-button:hover {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(232, 121, 249, 0.25) 100%);
+            color: #fff;
+            transform: scale(1.05);
+        }
+
+        .voice-control {
+            background: linear-gradient(135deg, rgba(232, 121, 249, 0.15) 0%, rgba(96, 165, 250, 0.12) 100%);
+            color: var(--text);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+            border: 1px solid var(--line-2);
+            box-shadow: var(--glow-fuchsia);
+        }
+
+        .voice-button {
+            background: transparent;
+            border: 1px solid var(--line-1);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .voice-button:hover {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(232, 121, 249, 0.25) 100%);
+            color: #fff;
+        }
+
+        /* 📊 TIMELINE AREA */
+        .timeline-area {
+            grid-area: timeline-area;
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            padding: 10px;
+            overflow-x: auto;
+        }
+
+        .timeline-ruler {
+            height: 30px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+            border: 1px solid var(--line-1);
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: var(--muted);
+        }
+
+        .timeline-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* 🎵 TRACK AREA - ENHANCED 24-TRACK SCROLLABLE */
+        .track-area {
+            grid-area: track-area;
+            background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(7, 11, 20, 0.85) 100%);
+            border: 1px solid var(--line-1);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 10px;
+            max-height: 100%;
+        }
+
+        .track-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-height: calc(24 * 85px); /* 24 tracks minimum */
+        }
+
+        .track {
+            height: 80px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .track:hover {
+            border-color: var(--accent-cyan);
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.08) 0%, rgba(255,255,255,0.02) 100%);
+            transform: translateX(5px);
+            box-shadow: var(--glow-cyan);
+        }
+
+        .track.selected {
+            border-color: var(--accent-fuchsia);
+            background: linear-gradient(135deg, rgba(232, 121, 249, 0.12) 0%, rgba(255,255,255,0.02) 100%);
+            box-shadow: var(--glow-fuchsia);
+        }
+
+        .track.recording {
+            animation: recording-pulse 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes recording-pulse {
+            from { 
+                border-color: #FF0000;
+                box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            }
+            to { 
+                border-color: #FF4500;
+                box-shadow: 0 0 20px rgba(255, 69, 0, 0.8);
+            }
+        }
+
+        .track-number {
+            color: var(--accent-blue);
+            font-size: 0.8rem;
+            font-weight: bold;
+            min-width: 25px;
+            text-align: center;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid var(--line-1);
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+
+        .track-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 40px;
+        }
+
+        .track-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .record-btn {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .record-btn:hover {
+            background: #FF4500;
+            transform: scale(1.2);
+        }
+
+        .record-btn.active {
+            animation: record-blink 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes record-blink {
+            from { background: #FF0000; }
+            to { background: #FFD700; color: #FF0000; }
+        }
+
+        .mute-btn {
+            background: rgba(255,255,255,0.15);
+            color: var(--text);
+        }
+
+        .mute-btn:hover {
+            background: rgba(34, 211, 238, 0.35);
+            color: #fff;
+        }
+
+        .mute-btn.active {
+            background: rgba(232, 121, 249, 0.35);
+            color: #fff;
+        }
+
+        .solo-btn {
+            background: var(--success);
+            color: #000;
+        }
+
+        .solo-btn:hover {
+            background: #7FFF00;
+        }
+
+        .solo-btn.active {
+            background: rgba(34, 211, 238, 0.35);
+            color: #fff;
+        }
+
+        .track-name {
+            color: var(--text);
+            font-weight: bold;
+            min-width: 120px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .track-name:hover {
+            background: rgba(34, 211, 238, 0.1);
+        }
+
+        .track-name input {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-weight: bold;
+            width: 100%;
+            outline: none;
+        }
+
+        .track-instrument {
+            color: var(--accent-blue);
+            font-size: 0.8rem;
+            min-width: 80px;
+            text-align: center;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid var(--line-1);
+            border-radius: 4px;
+            padding: 4px 8px;
+        }
+
+        .track-waveform {
+            flex: 1;
+            height: 50px;
+            background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(7, 11, 20, 0.85) 100%);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .waveform-data {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, #87CEEB 5%, #4169E1 10%, #87CEEB 15%, 
+                transparent 20%, #FF4500 25%, #FFD700 30%, #FF4500 35%, 
+                transparent 40%, #32CD32 45%, #00FF00 50%, #32CD32 55%,
+                transparent 60%, #9370DB 65%, #8A2BE2 70%, #9370DB 75%,
+                transparent 80%, #FF69B4 85%, #FF1493 90%, #FF69B4 95%, 
+                transparent 100%);
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .track:hover .waveform-data {
+            opacity: 0.8;
+        }
+
+        .track-volume {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 80px;
+        }
+
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-blue) 50%, var(--accent-fuchsia) 100%);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .volume-handle {
+            width: 12px;
+            height: 12px;
+            background: var(--accent-cyan);
+            border: 2px solid #000;
+            border-radius: 50%;
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .volume-handle:hover {
+            transform: scale(1.2);
+            background: var(--accent-fuchsia);
+        }
+
+        /* 🎛️ ENHANCED MIXER AREA - 24 CHANNELS */
+        .mixer-area {
+            grid-area: mixer-area;
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            padding: 15px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .mixer-channels {
+            display: flex;
+            gap: 8px;
+            height: 100%;
+            min-width: calc(24 * 90px); /* 24 channels minimum width */
+        }
+
+        .mixer-channel {
+            width: 85px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            border-radius: 10px;
+            padding: 10px 5px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            flex-shrink: 0;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .mixer-channel:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+        }
+
+        .mixer-channel.master {
+            border-color: var(--accent-fuchsia);
+            background: linear-gradient(135deg, rgba(232, 121, 249, 0.12) 0%, rgba(255,255,255,0.02) 100%);
+            width: 100px;
+        }
+
+        .channel-eq {
+            display: flex;
+            justify-content: space-between;
+            gap: 2px;
+            margin-bottom: 5px;
+        }
+
+        .eq-knob {
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, var(--accent-cyan) 0%, #2563eb 100%);
+            border: 2px solid #000;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .eq-knob:hover {
+            transform: scale(1.1);
+            background: radial-gradient(circle, var(--accent-cyan) 0%, var(--accent-fuchsia) 100%);
+        }
+
+        .eq-indicator {
+            width: 2px;
+            height: 8px;
+            background: #000;
+            position: absolute;
+            top: 2px;
+            left: 50%;
+            transform: translateX(-50%) rotate(0deg);
+            border-radius: 1px;
+            transition: transform 0.3s ease;
+        }
+
+        .channel-fader {
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent-cyan) 0%, var(--accent-blue) 40%, var(--accent-fuchsia) 100%);
+            width: 15px;
+            border-radius: 8px;
+            margin: 0 auto;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .fader-handle {
+            width: 25px;
+            height: 12px;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-fuchsia) 100%);
+            border: 2px solid #000;
+            border-radius: 4px;
+            position: absolute;
+            left: -5px;
+            top: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .fader-handle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .channel-meter {
+            width: 8px;
+            height: 60px;
+            background: linear-gradient(180deg, var(--danger) 0%, var(--accent-fuchsia) 50%, var(--success) 100%);
+            border-radius: 4px;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .meter-level {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            position: absolute;
+            bottom: 0;
+            transition: height 0.1s ease;
+        }
+
+        .channel-label {
+            color: var(--muted);
+            font-size: 0.7rem;
+            text-align: center;
+            font-weight: bold;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            padding: 2px;
+        }
+
+        /* 🚀 TRANSPORT CONTROLS */
+        .transport {
+            grid-area: transport;
+            background: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(10, 15, 31, 0.85) 100%);
+            border-left: 1px solid var(--line-1);
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .transport-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .transport-btn {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(232, 121, 249, 0.15) 100%);
+            border: 1px solid var(--line-1);
+            color: var(--text);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .transport-btn:hover {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.3) 0%, rgba(232, 121, 249, 0.3) 100%);
+            color: #fff;
+            transform: scale(1.05);
+        }
+
+        .bpm-display {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--line-1);
+            color: var(--text);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* 🔌 EFFECTS AREA */
+        .effects {
+            grid-area: effects;
+            background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(7, 11, 20, 0.85) 100%);
+            border-top: 1px solid var(--line-1);
+            padding: 15px;
+            overflow-x: auto;
+        }
+
+        .effects-rack {
+            display: flex;
+            gap: 15px;
+            height: 100%;
+        }
+
+        .effect-plugin {
+            min-width: 150px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            border-radius: 10px;
+            padding: 15px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .plugin-title {
+            color: var(--accent-cyan);
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .plugin-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .plugin-knob {
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, var(--accent-cyan) 0%, var(--accent-fuchsia) 100%);
+            border: 3px solid #000;
+            border-radius: 50%;
+            margin: 0 auto;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .knob-indicator {
+            width: 3px;
+            height: 15px;
+            background: #000;
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            border-radius: 2px;
+        }
+
+        /* 🌟 FLOATING WARRIOR PLUGINS */
+        .warrior-plugin {
+            position: fixed;
+            width: 400px;
+            height: 300px;
+            background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(7, 11, 20, 0.9) 100%);
+            border: 1px solid var(--line-1);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: none;
+        }
+
+        .warrior-headphone {
+            top: 100px;
+            left: 100px;
+        }
+
+        .warrior-vocal {
+            top: 150px;
+            right: 100px;
+        }
+
+        .warrior-usb {
+            bottom: 150px;
+            left: 150px;
+        }
+
+        .plugin-header {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.3) 0%, rgba(232, 121, 249, 0.3) 100%);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 12px 12px 0 0;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .plugin-close {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 🎨 VISUAL EFFECTS */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 215, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+        }
+
+        .recording {
+            animation: pulse 2s infinite;
+        }
+
+        .spectrum-analyzer {
+            width: 100%;
+            height: 60px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--line-1);
+            border-radius: 5px;
+            display: flex;
+            align-items: end;
+            gap: 2px;
+            padding: 5px;
+        }
+
+        .spectrum-bar {
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent-cyan) 0%, var(--accent-fuchsia) 50%, var(--danger) 100%);
+            border-radius: 2px;
+            animation: spectrum 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes spectrum {
+            0% { height: 20%; }
+            100% { height: 80%; }
+        }
+
+        .spectrum-bar:nth-child(odd) {
+            animation-delay: 0.1s;
+        }
+        .spectrum-bar:nth-child(even) {
+            animation-delay: 0.3s;
+        }
+
+        /* 📱 RESPONSIVE DESIGN */
+        @media (max-width: 1200px) {
+            .daw-container {
+                grid-template-columns: 250px 1fr 180px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .daw-container {
+                grid-template-areas:
+                    "toolbar"
+                    "timeline-area"
+                    "track-area"
+                    "mixer-area"
+                    "effects";
+                grid-template-columns: 1fr;
+                grid-template-rows: 60px 100px 1fr 150px 120px;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .transport {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 150px;
+                height: auto;
+                border-radius: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 🎛️ MAIN TITAN7 DAW INTERFACE -->
+    <div class="daw-container">
+        
+        <!-- 🏠 NAVIGATION HEADER -->
+        <div style="
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(0,0,0,0.75) 0%, rgba(10, 15, 31, 0.9) 100%);
+            backdrop-filter: blur(40px);
+            border-bottom: 1px solid rgba(103, 232, 249, 0.25);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        ">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <a href="index.html" style="
+                    background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(232, 121, 249, 0.25) 100%);
+                    border: 1px solid rgba(103, 232, 249, 0.35);
+                    border-radius: 10px;
+                    padding: 10px 18px;
+                    color: #fff;
+                    font-weight: 600;
+                    font-size: 13px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.3s ease;
+                    text-decoration: none;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    box-shadow: 0 0 18px rgba(103, 232, 249, 0.25);
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(103,232,249,0.35)'"
+                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 0 18px rgba(103, 232, 249, 0.25)'">
+                    🏠 SOTA Hub
+                </a>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="
+                        width: 40px;
+                        height: 40px;
+                        background: linear-gradient(135deg, rgba(34, 211, 238, 0.3) 0%, rgba(232, 121, 249, 0.3) 100%);
+                        border-radius: 10px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 20px;
+                        box-shadow: 0 0 20px rgba(103, 232, 249, 0.3);
+                    ">🎛️</div>
+                    <div>
+                        <h1 style="
+                            font-size: 24px;
+                            font-weight: 700;
+                            background: linear-gradient(135deg, #22d3ee 0%, #e879f9 100%);
+                            -webkit-background-clip: text;
+                            -webkit-text-fill-color: transparent;
+                            background-clip: text;
+                            margin: 0;
+                        ">Titan7 Professional DAW</h1>
+                        <p style="
+                            font-size: 12px;
+                            color: rgba(226, 232, 240, 0.8);
+                            margin: 0;
+                            letter-spacing: 1px;
+                            text-transform: uppercase;
+                        ">24-Track Digital Audio Workstation</p>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div style="
+                    padding: 8px 16px;
+                    background: rgba(96,165,250,0.08);
+                    border: 1px solid rgba(232,121,249,0.35);
+                    border-radius: 6px;
+                    color: #93c5fd;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                ">🔒 Licensed Software</div>
+                <button onclick="alert('🔒 Titan7 DAW Professional License\n\nPrice: $499/year\n\n✅ Features:\n• 24-Track Recording\n• Warrior Plugin Suite\n• Professional Mixing\n• Unlimited Export\n• Commercial Rights\n\n⚖️ Strict Licensing Required')" style="
+                    background: transparent;
+                    border: 1px solid rgba(103, 232, 249, 0.35);
+                    border-radius: 6px;
+                    padding: 6px 14px;
+                    color: #e2e8f0;
+                    font-size: 11px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.background='rgba(34,211,238,0.12)'"
+                   onmouseout="this.style.background='transparent'">View License</button>
+            </div>
+        </div>
+        
+        <!-- 🔧 TOP TOOLBAR -->
+        <div class="toolbar">
+            <div class="logo" onclick="toggleOwnerAccess()">
+                🎛️ TITAN7 DAW
+                <div class="owner-status-indicator" id="ownerStatusIndicator"></div>
+            </div>
+            
+            <div class="toolbar-section">
+                <button class="toolbar-button" onclick="showPlugin('warrior-headphone')">🎧 Warrior Headphone</button>
+                <button class="toolbar-button" onclick="showPlugin('warrior-vocal')">🎤 Warrior Vocal</button>
+                <button class="toolbar-button" onclick="showPlugin('warrior-usb')">🎸 Warrior USB</button>
+            </div>
+            
+            <div class="toolbar-section">
+                <button class="toolbar-button" onclick="saveProject()">💾 Save</button>
+                <button class="toolbar-button" onclick="openImportMenu(event)">📂 Load</button>
+                <button class="toolbar-button" onclick="exportProject()">📤 Export</button>
+                <!-- Hidden file inputs for imports -->
+                <input id="projectImportInput" type="file" accept=".sota,application/json" style="display:none" />
+                <input id="audioImportInput" type="file" accept="audio/*" style="display:none" />
+            </div>
+            
+            <div class="toolbar-section">
+                <button class="toolbar-button">⚙️ Settings</button>
+                <button class="toolbar-button">❓ Help</button>
+            </div>
+        </div>
+
+        <!-- 🎹 SIDEBAR - SOTA SYNTHESIZER & INSTRUMENTS -->
+        <div class="sidebar">
+            <!-- Voice Control Section -->
+            <div class="voice-control">
+                <div style="font-weight: bold; margin-bottom: 10px;">🎤 SOTA Voice Control</div>
+                <button class="voice-button" onclick="toggleVoiceMode()">🎵 Voice-to-MIDI</button>
+            </div>
+
+            <!-- AI Composer Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">🤖 AI Composer</div>
+                <select style="width: 100%; padding: 8px; background: #1a1a1a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px; margin-bottom: 10px;">
+                    <option>Country Ballad</option>
+                    <option>Bluegrass Fiddle</option>
+                    <option>Honky Tonk</option>
+                    <option>Modern Country</option>
+                    <option>Outlaw Country</option>
+                </select>
+                <button class="voice-button" onclick="toggleAI()" style="width: 100%;">🤖 Start AI Composer</button>
+            </div>
+
+            <!-- Instruments Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">🎸 Country Instruments</div>
+                <div class="instrument-grid">
+                    <button class="instrument-button">🎸 Guitar</button>
+                    <button class="instrument-button">🎻 Fiddle</button>
+                    <button class="instrument-button">🪕 Banjo</button>
+                    <button class="instrument-button">🎹 Piano</button>
+                    <button class="instrument-button">🎺 Harmonica</button>
+                    <button class="instrument-button">🥁 Drums</button>
+                    <button class="instrument-button">🎷 Steel Guitar</button>
+                    <button class="instrument-button">🎸 Bass</button>
+                </div>
+            </div>
+
+            <!-- Genre Packs Section -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">💎 Genre Packs</div>
+                <select style="width: 100%; padding: 8px; background: #1a1a1a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px;">
+                    <option>🤠 Country (FREE)</option>
+                    <option>✝️ Christian ($29.99)</option>
+                    <option>🎸 Rock ($34.99)</option>
+                    <option>💃 Pop ($27.99)</option>
+                    <option>🎷 Jazz ($39.99)</option>
+                    <option>🎧 EDM ($32.99)</option>
+                    <option>🎺 Blues ($24.99)</option>
+                    <option>🎤 Hip-Hop ($31.99)</option>
+                </select>
+            </div>
+
+            <!-- Spectrum Analyzer -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📊 Spectrum Analyzer</div>
+                <div class="spectrum-analyzer">
+                    <div class="spectrum-bar" style="height: 40%;"></div>
+                    <div class="spectrum-bar" style="height: 60%;"></div>
+                    <div class="spectrum-bar" style="height: 80%;"></div>
+                    <div class="spectrum-bar" style="height: 45%;"></div>
+                    <div class="spectrum-bar" style="height: 70%;"></div>
+                    <div class="spectrum-bar" style="height: 55%;"></div>
+                    <div class="spectrum-bar" style="height: 85%;"></div>
+                    <div class="spectrum-bar" style="height: 35%;"></div>
+                    <div class="spectrum-bar" style="height: 65%;"></div>
+                    <div class="spectrum-bar" style="height: 50%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📊 TIMELINE AREA -->
+        <div class="timeline-area">
+            <div class="timeline-ruler">
+                <div class="timeline-controls">
+                    <span style="color: var(--muted);">⏱️ 00:02:45</span>
+                    <span style="margin-left: 20px; color: var(--muted);">🎵 4/4</span>
+                    <span style="margin-left: 20px; color: var(--muted);">📏 1/16</span>
+                </div>
+            </div>
+            <div style="height: 80px; background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 25%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.08) 75%, rgba(255,255,255,0.04) 100%); border: 1px solid rgba(103, 232, 249, 0.25); border-radius: 5px; position: relative;">
+                <div style="position: absolute; top: 0; left: 30%; width: 3px; height: 100%; background: #22d3ee; animation: pulse 1s infinite;"></div>
+                <div style="position: absolute; top: 10px; left: 10%; right: 60%; height: 20px; background: linear-gradient(90deg, rgba(34, 211, 238, 0.5), rgba(232, 121, 249, 0.5)); border-radius: 3px; opacity: 0.8;"></div>
+                <div style="position: absolute; bottom: 10px; left: 40%; right: 20%; height: 15px; background: linear-gradient(90deg, rgba(96, 165, 250, 0.5), rgba(34, 211, 238, 0.5)); border-radius: 3px; opacity: 0.8;"></div>
+            </div>
+        </div>
+
+        <!-- 🎵 TRACK AREA - 24 SCROLLABLE TRACKS -->
+        <div class="track-area">
+            <div class="track-container">
+                <!-- Vocal Tracks -->
+                <div class="track selected" data-track="1">
+                    <div class="track-number">1</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎤 Lead Vocal</div>
+                    <div class="track-instrument">Voice</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="track" data-track="2">
+                    <div class="track-number">2</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎤 Harmony Vocal</div>
+                    <div class="track-instrument">Voice</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guitar Tracks -->
+                <div class="track" data-track="3">
+                    <div class="track-number">3</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎸 Lead Guitar</div>
+                    <div class="track-instrument">Guitar</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="4">
+                    <div class="track-number">4</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎸 Rhythm Guitar</div>
+                    <div class="track-instrument">Guitar</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="5">
+                    <div class="track-number">5</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎸 Bass Guitar</div>
+                    <div class="track-instrument">Bass</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drum Tracks -->
+                <div class="track" data-track="6">
+                    <div class="track-number">6</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🥁 Kick Drum</div>
+                    <div class="track-instrument">Drums</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="7">
+                    <div class="track-number">7</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🥁 Snare Drum</div>
+                    <div class="track-instrument">Drums</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="8">
+                    <div class="track-number">8</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🥁 Hi-Hat</div>
+                    <div class="track-instrument">Drums</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keyboard/Piano Tracks -->
+                <div class="track" data-track="9">
+                    <div class="track-number">9</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎹 Piano Lead</div>
+                    <div class="track-instrument">Piano</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="10">
+                    <div class="track-number">10</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎹 Piano Pad</div>
+                    <div class="track-instrument">Piano</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Country Instruments -->
+                <div class="track" data-track="11">
+                    <div class="track-number">11</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎻 Fiddle</div>
+                    <div class="track-instrument">Fiddle</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="12">
+                    <div class="track-number">12</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🪕 Banjo</div>
+                    <div class="track-instrument">Banjo</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="13">
+                    <div class="track-number">13</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎺 Harmonica</div>
+                    <div class="track-instrument">Harmonica</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="14">
+                    <div class="track-number">14</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎸 Steel Guitar</div>
+                    <div class="track-instrument">Steel Guitar</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Instrument Tracks -->
+                <div class="track" data-track="15">
+                    <div class="track-number">15</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎷 Saxophone</div>
+                    <div class="track-instrument">Sax</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="16">
+                    <div class="track-number">16</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎺 Trumpet</div>
+                    <div class="track-instrument">Trumpet</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strings Section -->
+                <div class="track" data-track="17">
+                    <div class="track-number">17</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎻 String Section</div>
+                    <div class="track-instrument">Strings</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="18">
+                    <div class="track-number">18</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎸 Acoustic Guitar</div>
+                    <div class="track-instrument">Acoustic</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Percussion -->
+                <div class="track" data-track="19">
+                    <div class="track-number">19</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🥁 Percussion</div>
+                    <div class="track-instrument">Perc</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Synth Tracks -->
+                <div class="track" data-track="20">
+                    <div class="track-number">20</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎹 SOTA Synth Lead</div>
+                    <div class="track-instrument">SOTA</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="21">
+                    <div class="track-number">21</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎹 SOTA Synth Pad</div>
+                    <div class="track-instrument">SOTA</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FX/Ambient Tracks -->
+                <div class="track" data-track="22">
+                    <div class="track-number">22</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🌊 Ambient FX</div>
+                    <div class="track-instrument">FX</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="23">
+                    <div class="track-number">23</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🎵 Voice-to-MIDI</div>
+                    <div class="track-instrument">Voice</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="track" data-track="24">
+                    <div class="track-number">24</div>
+                    <div class="track-controls">
+                        <button class="track-btn record-btn">⏺</button>
+                        <button class="track-btn mute-btn">M</button>
+                        <button class="track-btn solo-btn">S</button>
+                    </div>
+                    <div class="track-name">🤖 AI Composition</div>
+                    <div class="track-instrument">AI</div>
+                    <div class="track-waveform">
+                        <div class="waveform-data"></div>
+                    </div>
+                    <div class="track-volume">
+                        <div class="volume-slider">
+                            <div class="volume-handle"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎛️ MIXER AREA - 24 CHANNEL MIXER -->
+        <div class="mixer-area">
+            <div class="mixer-channels">
+                <!-- Vocal Channels -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🎤 VOC1</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 60%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #22c55e; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎤 VOC2</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 40%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #e879f9; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <!-- Guitar Channels -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🎸 GTR1</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 70%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #f43f5e; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎸 GTR2</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 55%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #60a5fa; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎸 BASS</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 80%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #a78bfa; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <!-- Drum Channels -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🥁 KICK</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 85%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #ef4444; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🥁 SNARE</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 75%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #e879f9; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🥁 HIHAT</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 45%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #22d3ee; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <!-- Piano Channels -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🎹 PNO1</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 65%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #22c55e; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎹 PNO2</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 50%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #e879f9; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <!-- Country Instruments -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🎻 FIDL</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 60%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #a78bfa; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🪕 BANJO</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 35%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #e879f9; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎺 HARM</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 40%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #f43f5e; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎸 STEEL</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 55%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #60a5fa; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <!-- Additional Instruments (15-24) -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🎷 SAX</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 45%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #f59e0b; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎺 TRPT</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 30%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #fb7185; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎻 STR</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 65%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #f0abfc; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎸 ACOU</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 50%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #34d399; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🥁 PERC</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 40%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #fde68a; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <!-- SOTA Synth Channels -->
+                <div class="mixer-channel">
+                    <div class="channel-label">🎹 SOTA1</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 70%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #f43f5e; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto; border: 2px solid #22d3ee;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🎹 SOTA2</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 55%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #60a5fa; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto; border: 2px solid #22d3ee;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">� FX</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 25%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #22d3ee; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto;"></div>
+                </div>
+
+                <div class="mixer-channel">
+                    <div class="channel-label">🤖 AI</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                        <div class="eq-knob"><div class="eq-indicator"></div></div>
+                    </div>
+                    <div class="channel-meter">
+                        <div class="meter-level" style="height: 80%;"></div>
+                    </div>
+                    <div class="channel-fader">
+                        <div class="fader-handle"></div>
+                    </div>
+                    <div style="background: #a78bfa; width: 15px; height: 15px; border-radius: 50%; margin: 0 auto; border: 2px solid #22d3ee;"></div>
+                </div>
+
+                <!-- Master Channel -->
+                <div class="mixer-channel master">
+                    <div class="channel-label" style="color: #e2e8f0; font-weight: bold;">🎛️ MASTER</div>
+                    <div class="channel-eq">
+                        <div class="eq-knob" style="background: radial-gradient(circle, #FFD700 0%, #FF4500 100%);">
+                            <div class="eq-indicator"></div>
+                        </div>
+                        <div class="eq-knob" style="background: radial-gradient(circle, #FFD700 0%, #FF4500 100%);">
+                            <div class="eq-indicator"></div>
+                        </div>
+                        <div class="eq-knob" style="background: radial-gradient(circle, #FFD700 0%, #FF4500 100%);">
+                            <div class="eq-indicator"></div>
+                        </div>
+                    </div>
+                    <div class="channel-meter" style="width: 12px; height: 80px;">
+                        <div class="meter-level" style="height: 75%;"></div>
+                    </div>
+                    <div class="channel-fader" style="width: 20px;">
+                        <div class="fader-handle" style="width: 30px; height: 15px; background: linear-gradient(135deg, #22d3ee 0%, #e879f9 100%);"></div>
+                    </div>
+                    <div style="background: #22d3ee; width: 20px; height: 20px; border-radius: 50%; margin: 0 auto; border: 3px solid #e879f9; animation: master-pulse 2s ease-in-out infinite alternate;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 TRANSPORT CONTROLS -->
+        <div class="transport">
+            <div class="bpm-display">120 BPM</div>
+            <div class="transport-buttons">
+                <button class="transport-btn" onclick="toggleRecord()">⏺️ REC</button>
+                <button class="transport-btn" onclick="togglePlay()">▶️ PLAY</button>
+                <button class="transport-btn" onclick="stop()">⏹️ STOP</button>
+                <button class="transport-btn" onclick="loop()">🔄 LOOP</button>
+            </div>
+            <div style="background: rgba(0,0,0,0.6); border: 1px solid rgba(103, 232, 249, 0.25); border-radius: 5px; padding: 10px; text-align: center; color: #e2e8f0; font-size: 0.9rem;">
+                <div>🎵 Key: G Major</div>
+                <div>🎼 4/4 Time</div>
+            </div>
+        </div>
+
+        <!-- 🔌 EFFECTS AREA -->
+        <div class="effects">
+            <div class="effects-rack">
+                <!-- Warrior Headphone Plugin -->
+                <div class="effect-plugin">
+                    <div class="plugin-title">🎧 Warrior Headphone</div>
+                    <div class="plugin-controls">
+                        <div style="color: #87CEEB; font-size: 0.8rem; text-align: center;">HD800S Emulation</div>
+                        <div class="plugin-knob">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div style="color: #87CEEB; font-size: 0.8rem; text-align: center;">Spatial</div>
+                    </div>
+                </div>
+
+                <!-- EQ Plugin -->
+                <div class="effect-plugin">
+                    <div class="plugin-title">🎛️ Studio EQ</div>
+                    <div class="plugin-controls">
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            <div class="plugin-knob" style="width: 25px; height: 25px;">
+                                <div class="knob-indicator"></div>
+                            </div>
+                            <div class="plugin-knob" style="width: 25px; height: 25px;">
+                                <div class="knob-indicator"></div>
+                            </div>
+                            <div class="plugin-knob" style="width: 25px; height: 25px;">
+                                <div class="knob-indicator"></div>
+                            </div>
+                        </div>
+                        <div style="color: #87CEEB; font-size: 0.7rem; text-align: center;">Hi | Mid | Lo</div>
+                    </div>
+                </div>
+
+                <!-- Compressor Plugin -->
+                <div class="effect-plugin">
+                    <div class="plugin-title">🎚️ Compressor</div>
+                    <div class="plugin-controls">
+                        <div class="plugin-knob">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div style="color: #87CEEB; font-size: 0.8rem; text-align: center;">Threshold</div>
+                    </div>
+                </div>
+
+                <!-- Reverb Plugin -->
+                <div class="effect-plugin">
+                    <div class="plugin-title">🌊 Reverb</div>
+                    <div class="plugin-controls">
+                        <div class="plugin-knob">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div style="color: #87CEEB; font-size: 0.8rem; text-align: center;">Room</div>
+                    </div>
+                </div>
+
+                <!-- Warrior Vocal Plugin -->
+                <div class="effect-plugin">
+                    <div class="plugin-title">🎤 Warrior Vocal</div>
+                    <div class="plugin-controls">
+                        <div style="color: #87CEEB; font-size: 0.8rem; text-align: center;">Auto-Repair</div>
+                        <div class="plugin-knob">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div style="color: #87CEEB; font-size: 0.8rem; text-align: center;">Enhance</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 FLOATING WARRIOR PLUGINS -->
+    <div id="warrior-headphone" class="warrior-plugin warrior-headphone">
+        <div class="plugin-header">
+            🎧 Warrior Headphone - Studio Emulation
+            <button class="plugin-close" onclick="hidePlugin('warrior-headphone')">×</button>
+        </div>
+        <div style="padding: 20px; color: #FFD700;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">Studio Headphone Model:</label>
+                <select style="width: 100%; padding: 8px; background: #1a1a1a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px;">
+                    <option>🎧 Sennheiser HD800S</option>
+                    <option>🎧 Beyerdynamic DT1990 Pro</option>
+                    <option>🎧 Audeze LCD-X</option>
+                </select>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                <div style="text-align: center;">
+                    <div>Spatial Enhancement</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Frequency Correction</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Dynamic Range</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Bluetooth Compensation</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="warrior-vocal" class="warrior-plugin warrior-vocal">
+        <div class="plugin-header">
+            🎤 Warrior Vocal - AI Repair Suite
+            <button class="plugin-close" onclick="hidePlugin('warrior-vocal')">×</button>
+        </div>
+        <div style="padding: 20px; color: #FFD700;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">Vocal Style:</label>
+                <select style="width: 100%; padding: 8px; background: #1a1a1a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px;">
+                    <option>🎵 Pop/Contemporary</option>
+                    <option>🎤 Rap/Hip-Hop</option>
+                    <option>🎶 Jazz/Blues</option>
+                    <option>🎭 Opera/Classical</option>
+                </select>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                <div style="text-align: center;">
+                    <div>Pitch Correction</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Timing Alignment</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>De-Noising</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Spectral Repair</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="warrior-usb" class="warrior-plugin warrior-usb">
+        <div class="plugin-header">
+            🎸 Warrior USB - Instrument Direct
+            <button class="plugin-close" onclick="hidePlugin('warrior-usb')">×</button>
+        </div>
+        <div style="padding: 20px; color: #FFD700;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">Detected Instrument:</label>
+                <div style="background: #000; padding: 10px; border: 1px solid #FFD700; border-radius: 5px; text-align: center;">
+                    🎸 Electric Guitar Detected
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                <div style="text-align: center;">
+                    <div>Amp Modeling</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>EQ Correction</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Compression</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <div>Room Reverb</div>
+                    <div class="plugin-knob" style="margin: 10px auto;">
+                        <div class="knob-indicator"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 🎛️ ENHANCED 24-TRACK DAW FUNCTIONALITY
+        let isPlaying = false;
+        let isRecording = false;
+        let voiceMode = false;
+        let aiComposer = false;
+        let selectedTrack = 1;
+        let trackStates = {};
+    let projectMeta = { name: 'Untitled Project', bpm: 120, key: 'C' };
+
+        // Initialize track states
+        for (let i = 1; i <= 24; i++) {
+            trackStates[i] = {
+                recording: false,
+                muted: false,
+                solo: false,
+                volume: 75,
+                selected: i === 1
+            };
+        }
+
+        function selectTrack(trackNumber) {
+            // Deselect all tracks
+            document.querySelectorAll('.track').forEach(track => {
+                track.classList.remove('selected');
+                trackStates[track.dataset.track].selected = false;
+            });
+            
+            // Select the clicked track
+            const track = document.querySelector(`[data-track="${trackNumber}"]`);
+            if (track) {
+                track.classList.add('selected');
+                trackStates[trackNumber].selected = true;
+                selectedTrack = trackNumber;
+                
+                // Update sidebar with track info
+                updateSidebarForTrack(trackNumber);
+            }
+        }
+
+        function updateSidebarForTrack(trackNumber) {
+            const trackName = document.querySelector(`[data-track="${trackNumber}"] .track-name`).textContent;
+            const trackInstrument = document.querySelector(`[data-track="${trackNumber}"] .track-instrument`).textContent;
+            
+            // You could update the sidebar here to show track-specific instruments and settings
+            console.log(`Selected Track ${trackNumber}: ${trackName} (${trackInstrument})`);
+        }
+
+        function toggleTrackRecord(trackNumber) {
+            const state = trackStates[trackNumber];
+            state.recording = !state.recording;
+            
+            const track = document.querySelector(`[data-track="${trackNumber}"]`);
+            const recordBtn = track.querySelector('.record-btn');
+            
+            if (state.recording) {
+                track.classList.add('recording');
+                recordBtn.classList.add('active');
+                recordBtn.textContent = '⏹';
+            } else {
+                track.classList.remove('recording');
+                recordBtn.classList.remove('active');
+                recordBtn.textContent = '⏺';
+            }
+        }
+
+        function toggleTrackMute(trackNumber) {
+            const state = trackStates[trackNumber];
+            state.muted = !state.muted;
+            
+            const track = document.querySelector(`[data-track="${trackNumber}"]`);
+            const muteBtn = track.querySelector('.mute-btn');
+            
+            if (state.muted) {
+                muteBtn.classList.add('active');
+                track.style.opacity = '0.5';
+            } else {
+                muteBtn.classList.remove('active');
+                track.style.opacity = '1';
+            }
+        }
+
+        function toggleTrackSolo(trackNumber) {
+            const state = trackStates[trackNumber];
+            state.solo = !state.solo;
+            
+            const track = document.querySelector(`[data-track="${trackNumber}"]`);
+            const soloBtn = track.querySelector('.solo-btn');
+            
+            if (state.solo) {
+                soloBtn.classList.add('active');
+                // Mute all other tracks visually
+                document.querySelectorAll('.track').forEach((t, index) => {
+                    if (index + 1 !== trackNumber) {
+                        t.style.opacity = '0.3';
+                    }
+                });
+            } else {
+                soloBtn.classList.remove('active');
+                // Restore all tracks
+                document.querySelectorAll('.track').forEach(t => {
+                    t.style.opacity = '1';
+                });
+            }
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = event.target;
+            btn.textContent = isPlaying ? '⏸️ PAUSE' : '▶️ PLAY';
+            btn.style.background = isPlaying ? 
+                'linear-gradient(135deg, #32CD32 0%, #228B22 100%)' : 
+                'linear-gradient(135deg, #FF4500 0%, #FF0000 100%)';
+                
+            // Animate waveforms when playing
+            if (isPlaying) {
+                startWaveformAnimation();
+            } else {
+                stopWaveformAnimation();
+            }
+        }
+
+        function toggleRecord() {
+            isRecording = !isRecording;
+            const btn = event.target;
+            btn.textContent = isRecording ? '⏺️ STOP REC' : '⏺️ REC';
+            btn.className = isRecording ? 'transport-btn recording' : 'transport-btn';
+            
+            // Auto-arm selected track for recording
+            if (isRecording && selectedTrack) {
+                toggleTrackRecord(selectedTrack);
+            }
+        }
+
+        function stop() {
+            isPlaying = false;
+            isRecording = false;
+            document.querySelector('button[onclick="togglePlay()"]').textContent = '▶️ PLAY';
+            document.querySelector('button[onclick="toggleRecord()"]').textContent = '⏺️ REC';
+            
+            // Stop all track recordings
+            for (let i = 1; i <= 24; i++) {
+                if (trackStates[i].recording) {
+                    toggleTrackRecord(i);
+                }
+            }
+            
+            stopWaveformAnimation();
+        }
+
+        function loop() {
+            alert('🔄 Loop mode toggled for 24-track session!');
+        }
+
+        // 📂 Import / Export / Save basic wiring
+        function openImportMenu(e){
+            const choice = prompt('📂 Import Options:\n\n1 = Import Project (.sota/.json)\n2 = Import Audio to Selected Track');
+            if (!choice) return;
+            if (choice.trim() === '1') {
+                document.getElementById('projectImportInput').click();
+            } else if (choice.trim() === '2') {
+                document.getElementById('audioImportInput').click();
+            }
+        }
+
+        function exportProject(){
+            // Simple UI-only export of mixer/track labels and states
+            const tracks = Array.from(document.querySelectorAll('.track')).map(t => {
+                const id = parseInt(t.dataset.track);
+                return {
+                    id,
+                    name: t.querySelector('.track-name')?.textContent || `Track ${id}`,
+                    instrument: t.querySelector('.track-instrument')?.textContent || '',
+                    volume: trackStates[id]?.volume ?? 75,
+                    muted: !!trackStates[id]?.muted,
+                    solo: !!trackStates[id]?.solo
+                };
+            });
+            const payload = { name: projectMeta.name, bpm: projectMeta.bpm, key: projectMeta.key, tracks, timestamp: Date.now() };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${(projectMeta.name||'project').replace(/\s+/g,'_')}.sota`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            alert('📤 Project exported (.sota)');
+        }
+
+        function saveProject(){
+            // UX sugar: same as export for now
+            exportProject();
+        }
+
+        function toggleVoiceMode() {
+            voiceMode = !voiceMode;
+            const btn = event.target;
+            btn.textContent = voiceMode ? '🎵 Voice Active' : '🎵 Voice-to-MIDI';
+            btn.style.background = voiceMode ? '#32CD32' : 'transparent';
+            if (voiceMode) {
+                alert('🎤 Voice-to-MIDI activated! Sing to create melodies on Track ' + selectedTrack);
+            }
+        }
+
+        function toggleAI() {
+            aiComposer = !aiComposer;
+            const btn = event.target;
+            btn.textContent = aiComposer ? '🛑 Stop AI' : '🤖 Start AI Composer';
+            btn.style.background = aiComposer ? 
+                'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)' : 
+                'transparent';
+            if (aiComposer) {
+                alert('🤖 AI Composer activated! Creating music across multiple tracks...');
+            }
+        }
+
+        function startWaveformAnimation() {
+            const waveforms = document.querySelectorAll('.waveform-data');
+            waveforms.forEach((waveform, index) => {
+                waveform.style.animation = `waveform-pulse ${0.5 + (index % 3) * 0.2}s ease-in-out infinite alternate`;
+            });
+        }
+
+        function stopWaveformAnimation() {
+            const waveforms = document.querySelectorAll('.waveform-data');
+            waveforms.forEach(waveform => {
+                waveform.style.animation = 'none';
+            });
+        }
+
+        // 🌟 WARRIOR PLUGIN MANAGEMENT (Enhanced)
+        function showPlugin(pluginId) {
+            document.getElementById(pluginId).style.display = 'block';
+            // Center the plugin on screen
+            const plugin = document.getElementById(pluginId);
+            plugin.style.left = '50%';
+            plugin.style.top = '50%';
+            plugin.style.transform = 'translate(-50%, -50%)';
+        }
+
+        function hidePlugin(pluginId) {
+            document.getElementById(pluginId).style.display = 'none';
+        }
+
+        // 🎨 ENHANCED VISUAL EFFECTS
+        setInterval(() => {
+            const bars = document.querySelectorAll('.spectrum-bar');
+            bars.forEach(bar => {
+                const height = Math.random() * 80 + 20;
+                bar.style.height = height + '%';
+            });
+            
+            // Animate meter levels when playing
+            if (isPlaying) {
+                const meters = document.querySelectorAll('.meter-level');
+                meters.forEach(meter => {
+                    const height = Math.random() * 80 + 20;
+                    meter.style.height = height + '%';
+                });
+            }
+        }, 200);
+
+        // 🎵 ENHANCED KEYBOARD SHORTCUTS
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'KeyR':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        toggleRecord();
+                    }
+                    break;
+                case 'KeyS':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        alert('💾 24-track project saved!');
+                    }
+                    break;
+                case 'KeyV':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        toggleVoiceMode();
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (selectedTrack > 1) {
+                        selectTrack(selectedTrack - 1);
+                    }
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (selectedTrack < 24) {
+                        selectTrack(selectedTrack + 1);
+                    }
+                    break;
+                case 'KeyM':
+                    e.preventDefault();
+                    toggleTrackMute(selectedTrack);
+                    break;
+            }
+        });
+
+        // 🎛️ ENHANCED MIXER FADER INTERACTION
+        document.querySelectorAll('.fader-handle').forEach((fader, index) => {
+            let isDragging = false;
+            
+            fader.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const rect = fader.parentElement.getBoundingClientRect();
+                    const y = Math.max(0, Math.min(rect.height - 15, e.clientY - rect.top));
+                    fader.style.top = y + 'px';
+                    
+                    // Update track volume
+                    const volumePercent = 100 - (y / (rect.height - 15)) * 100;
+                    if (index < 24) {
+                        trackStates[index + 1].volume = volumePercent;
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+
+        // 🎯 TRACK INTERACTION SETUP
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wire import inputs
+            const projectInput = document.getElementById('projectImportInput');
+            const audioInput = document.getElementById('audioImportInput');
+
+            if (projectInput) {
+                projectInput.addEventListener('change', async (ev) => {
+                    const file = ev.target.files && ev.target.files[0];
+                    if (!file) return;
+                    try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        // Apply basic fields
+                        projectMeta.name = data.name || projectMeta.name;
+                        projectMeta.bpm = Number(data.bpm) || projectMeta.bpm;
+                        projectMeta.key = data.key || projectMeta.key;
+                        // Update BPM label if present
+                        const bpmNode = document.querySelector('.bpm-display');
+                        if (bpmNode && projectMeta.bpm) bpmNode.textContent = `${projectMeta.bpm} BPM`;
+                        // Apply tracks (name, instrument, states)
+                        if (Array.isArray(data.tracks)){
+                            data.tracks.forEach(t => {
+                                const el = document.querySelector(`.track[data-track="${t.id}"]`);
+                                if (!el) return;
+                                if (t.name) el.querySelector('.track-name').textContent = t.name;
+                                if (t.instrument) el.querySelector('.track-instrument').textContent = t.instrument;
+                                if (typeof t.volume === 'number') {
+                                    trackStates[t.id].volume = t.volume;
+                                    const handle = el.querySelector('.volume-handle');
+                                    if (handle) handle.style.left = `${Math.max(0, Math.min(100, t.volume))}%`;
+                                }
+                                if (t.muted) {
+                                    if (!trackStates[t.id].muted) toggleTrackMute(t.id);
+                                } else if (trackStates[t.id].muted) {
+                                    toggleTrackMute(t.id); // toggle off
+                                }
+                                if (t.solo) {
+                                    if (!trackStates[t.id].solo) toggleTrackSolo(t.id);
+                                } else if (trackStates[t.id].solo) {
+                                    toggleTrackSolo(t.id); // toggle off
+                                }
+                            });
+                        }
+                        alert(`✅ Project imported: ${projectMeta.name}`);
+                    } catch (err) {
+                        console.error('Import failed', err);
+                        alert('❌ Failed to import project: invalid file format.');
+                    } finally {
+                        ev.target.value = '';
+                    }
+                });
+            }
+
+            if (audioInput) {
+                audioInput.addEventListener('change', async (ev) => {
+                    const file = ev.target.files && ev.target.files[0];
+                    if (!file) return;
+                    try {
+                        // For now: label the selected track and show a toast. Full waveform decoding can be added next.
+                        const trackEl = document.querySelector(`.track[data-track="${selectedTrack}"]`);
+                        if (trackEl) {
+                            trackEl.querySelector('.track-name').textContent = `🎵 ${file.name}`;
+                            trackEl.querySelector('.waveform-data').style.opacity = 0.9;
+                        }
+                        alert(`🎵 Imported audio to Track ${selectedTrack}: ${file.name}`);
+                    } catch (err) {
+                        console.error('Audio import failed', err);
+                        alert('❌ Failed to import audio file.');
+                    } finally {
+                        ev.target.value = '';
+                    }
+                });
+            }
+            // Add click handlers to tracks
+            document.querySelectorAll('.track').forEach(track => {
+                const trackNumber = parseInt(track.dataset.track);
+                
+                // Track selection
+                track.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('track-btn')) {
+                        selectTrack(trackNumber);
+                    }
+                });
+                
+                // Record button
+                const recordBtn = track.querySelector('.record-btn');
+                recordBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleTrackRecord(trackNumber);
+                });
+                
+                // Mute button
+                const muteBtn = track.querySelector('.mute-btn');
+                muteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleTrackMute(trackNumber);
+                });
+                
+                // Solo button
+                const soloBtn = track.querySelector('.solo-btn');
+                soloBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleTrackSolo(trackNumber);
+                });
+                
+                // Volume slider interaction
+                const volumeSlider = track.querySelector('.volume-slider');
+                volumeSlider.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const rect = volumeSlider.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percent = (x / rect.width) * 100;
+                    trackStates[trackNumber].volume = percent;
+                    
+                    const handle = track.querySelector('.volume-handle');
+                    handle.style.left = `${percent}%`;
+                });
+            });
+            
+            // EQ knob interactions
+            document.querySelectorAll('.eq-knob').forEach(knob => {
+                knob.addEventListener('click', () => {
+                    const indicator = knob.querySelector('.eq-indicator');
+                    const rotation = Math.random() * 360;
+                    indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+                });
+            });
+        });
+
+        // 🎨 STARTUP ANIMATION
+        window.addEventListener('load', () => {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 1s ease';
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+            
+            // Initialize first track as selected
+            selectTrack(1);
+        });
+        
+        // 🔒 OWNER ACCESS CODE SYSTEM
+        let ownerAccessActive = false;
+        const validOwnerCodes = ['19Flanary72', '10Tanner16', '05Ashley95', '20Bumper06', '09Chance14'];
+        
+        function toggleOwnerAccess() {
+            const overlay = document.getElementById('ownerAccessOverlay');
+            overlay.style.display = 'flex';
+            document.getElementById('ownerCodeInput').focus();
+        }
+        
+        function closeOwnerAccess() {
+            const overlay = document.getElementById('ownerAccessOverlay');
+            overlay.style.display = 'none';
+            document.getElementById('ownerCodeInput').value = '';
+        }
+        
+        function validateOwnerCode() {
+            const input = document.getElementById('ownerCodeInput');
+            const code = input.value.trim();
+            
+            if (validOwnerCodes.includes(code)) {
+                // Activate owner privileges
+                ownerAccessActive = true;
+                
+                // Show status indicator
+                const indicator = document.getElementById('ownerStatusIndicator');
+                indicator.style.display = 'block';
+                
+                // Apply visual changes to show owner status
+                document.querySelectorAll('.toolbar-button').forEach(btn => {
+                    btn.classList.add('owner-privileges-active');
+                });
+                
+                // Close overlay
+                closeOwnerAccess();
+                
+                // Show confirmation
+                alert('🎉 Owner Access Activated!\n\n✅ Unlimited access to all features\n✅ All premium content unlocked\n✅ Advanced tools enabled\n✅ Export restrictions removed\n✅ Commercial licensing included\n\nWelcome back, Owner!');
+                
+                // Enable all premium features
+                enableOwnerFeatures();
+                
+            } else {
+                // Invalid code
+                input.style.borderColor = '#FF4444';
+                input.style.boxShadow = '0 0 20px rgba(255, 68, 68, 0.5)';
+                
+                setTimeout(() => {
+                    input.style.borderColor = '#FFD700';
+                    input.style.boxShadow = '';
+                }, 2000);
+                
+                alert('❌ Invalid Owner Code\n\nPlease check your code and try again.');
+            }
+        }
+        
+        function enableOwnerFeatures() {
+            // Enable all premium features, unlimited exports, etc.
+            console.log('🎉 Owner features activated');
+            
+            // Add "OWNER" badge to title
+            const logo = document.querySelector('.logo');
+            logo.innerHTML = '🎛️ TITAN7 DAW <span style="color: #32CD32; font-size: 0.8rem; margin-left: 10px;">OWNER</span><div class="owner-status-indicator" id="ownerStatusIndicator" style="display: block;"></div>';
+        }
+        
+        // Handle Enter key in owner code input
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ownerCodeInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    validateOwnerCode();
+                }
+            });
+        });
+    </script>
+
+    <!-- 🔒 OWNER ACCESS CODE OVERLAY -->
+    <div class="owner-access-overlay" id="ownerAccessOverlay">
+        <div class="owner-access-panel">
+            <div class="owner-access-title">🔒 Owner Access</div>
+            <div style="color: rgba(255, 215, 0, 0.8); margin-bottom: 25px; font-size: 1rem;">
+                Enter your owner code to unlock unlimited access to all features and content
+            </div>
+            <input type="text" class="owner-access-input" id="ownerCodeInput" placeholder="Enter Owner Code" maxlength="12">
+            <div class="owner-access-buttons">
+                <button class="owner-access-btn owner-access-confirm" onclick="validateOwnerCode()">🔓 Activate</button>
+                <button class="owner-access-btn owner-access-cancel" onclick="closeOwnerAccess()">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

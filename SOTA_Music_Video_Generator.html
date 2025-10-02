@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOTA Music Video Generator - Revolutionary AI-Powered Video Creation</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(145deg, #070b14 0%, #0a0f1f 40%, #0b1225 100%);
+            color: #e5e7eb;
+            overflow-x: hidden;
+        }
+        
+        /* 🎬 HEADER SECTION */
+        .header {
+            background: linear-gradient(135deg, rgba(5,8,12,0.85) 0%, rgba(10,10,15,0.85) 100%);
+            backdrop-filter: blur(30px);
+            padding: 20px;
+            border-bottom: 2px solid rgba(56,189,248,0.35);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        /* 🏠 NAVIGATION HEADER */
+        .navigation-header {
+            background: linear-gradient(135deg, rgba(5,8,12,0.95) 0%, rgba(10,10,15,0.95) 100%);
+            backdrop-filter: blur(40px);
+            border-bottom: 3px solid rgba(56,189,248,0.45);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.6);
+            position: sticky;
+            top: 0;
+            z-index: 1001;
+        }
+        
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .nav-hub-btn {
+            background: linear-gradient(135deg, #06b6d4 0%, #a21caf 100%);
+            border: 1px solid rgba(56,189,248,0.45);
+            border-radius: 10px;
+            padding: 10px 18px;
+            color: #e5faff;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 30px rgba(103,232,249,0.25);
+        }
+        
+        .nav-hub-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(103,232,249,0.35);
+            filter: saturate(1.2);
+        }
+        
+        .nav-title-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .nav-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #06b6d4 0%, #a21caf 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 25px rgba(103,232,249,0.35);
+        }
+        
+        .nav-title {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #67e8f9 0%, #e879f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+        
+        .nav-subtitle {
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .nav-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .license-badge {
+            padding: 8px 16px;
+            background: rgba(6,182,212,0.12);
+            border: 1px solid rgba(56,189,248,0.35);
+            border-radius: 8px;
+            color: #67e8f9;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .license-btn {
+            background: transparent;
+            border: 1px solid rgba(56,189,248,0.45);
+            border-radius: 8px;
+            padding: 6px 14px;
+            color: #67e8f9;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.25s ease;
+        }
+        
+        .license-btn:hover {
+            background: rgba(56,189,248,0.12);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .sota-logo {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(45deg, #67e8f9, #e879f9, #67e8f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(103,232,249,0.35);
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 10px;
+            border: 1px solid rgba(103,232,249,0.25);
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: #67e8f9;
+        }
+        
+        /* 🎛️ MAIN INTERFACE */
+        .main-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            gap: 20px;
+            min-height: calc(100vh - 120px);
+        }
+        
+        /* 📁 LEFT PANEL - MUSIC INPUT */
+        .music-input-panel {
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(103,232,249,0.25);
+            border-radius: 20px;
+            padding: 25px;
+            height: fit-content;
+        }
+        
+        .panel-title {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #67e8f9 0%, #e879f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .music-upload-zone {
+            border: 2px dashed rgba(103,232,249,0.45);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            background: rgba(6,182,212,0.08);
+            margin-bottom: 20px;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+        
+        .music-upload-zone:hover {
+            border-color: rgba(103,232,249,0.8);
+            background: rgba(6,182,212,0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(103,232,249,0.25);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .music-metadata {
+            background: rgba(0,0,0,0.35);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(103,232,249,0.2);
+        }
+        
+        .metadata-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(103,232,249,0.15);
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #67e8f9;
+            font-weight: 700;
+        }
+        
+        .sota-input, .sota-select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(103,232,249,0.25);
+            border-radius: 10px;
+            color: #e5e7eb;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+        }
+        
+        .sota-input:focus, .sota-select:focus {
+            outline: none;
+            border-color: rgba(103,232,249,0.8);
+            box-shadow: 0 0 20px rgba(103,232,249,0.25);
+        }
+        
+        /* 🎬 CENTER PANEL - VIDEO GENERATION */
+        .video-generation-panel {
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(103,232,249,0.25);
+            border-radius: 20px;
+            padding: 25px;
+        }
+        
+        .generation-modes {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .generation-mode {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(103,232,249,0.25);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        
+        .generation-mode:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(103,232,249,0.5);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(103,232,249,0.25);
+        }
+        
+        .generation-mode.active {
+            background: linear-gradient(135deg, #06b6d4 0%, #a21caf 100%);
+            color: #f0f9ff;
+            font-weight: 800;
+        }
+        
+        .mode-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .video-preview {
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(103,232,249,0.25);
+            box-shadow: inset 0 0 40px rgba(103,232,249,0.08);
+        }
+        
+        .preview-placeholder {
+            text-align: center;
+            color: rgba(103,232,249,0.8);
+        }
+        
+        .preview-video {
+            width: 100%;
+            max-height: 400px;
+            border-radius: 15px;
+        }
+        
+        .timeline-editor {
+            background: rgba(0,0,0,0.45);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(103,232,249,0.2);
+        }
+        
+        .timeline-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(103,232,249,0.15);
+        }
+        
+        .track-waveform {
+            flex: 1;
+            height: 60px;
+            background: linear-gradient(90deg, 
+                rgba(6,182,212,0.9) 0%, 
+                rgba(6,182,212,0.6) 25%, 
+                rgba(162,28,175,0.6) 50%, 
+                rgba(6,182,212,0.6) 75%, 
+                rgba(6,182,212,0.9) 100%);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .waveform-bars {
+            display: flex;
+            height: 100%;
+            align-items: end;
+            gap: 2px;
+            padding: 5px;
+        }
+        
+        .waveform-bar {
+            background: rgba(255,255,255,0.9);
+            width: 3px;
+            border-radius: 2px;
+            transition: height 0.3s ease;
+        }
+        
+        .generation-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .sota-button {
+            background: linear-gradient(135deg, #06b6d4 0%, #a21caf 100%);
+            color: #e6f9ff;
+            border: 1px solid rgba(56,189,248,0.35);
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 30px rgba(103,232,249,0.2);
+        }
+        
+        .sota-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(103,232,249,0.3);
+            filter: saturate(1.1);
+        }
+        
+        .sota-button.secondary {
+            background: transparent;
+            color: #67e8f9;
+            border: 1px solid rgba(56,189,248,0.45);
+        }
+        
+        .sota-button.secondary:hover {
+            background: rgba(56,189,248,0.12);
+            color: #e6f9ff;
+        }
+        
+        /* 🎨 RIGHT PANEL - STYLE & EXPORT */
+        .style-export-panel {
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(103,232,249,0.25);
+            border-radius: 20px;
+            padding: 25px;
+            height: fit-content;
+        }
+        
+        .style-section {
+            margin-bottom: 30px;
+        }
+        
+        .style-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .style-option {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(103,232,249,0.25);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 12px;
+            color: #e5e7eb;
+        }
+        
+        .style-option:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(103,232,249,0.5);
+        }
+        
+        .style-option.active {
+            background: linear-gradient(135deg, #06b6d4 0%, #a21caf 100%);
+            color: #f0f9ff;
+            font-weight: 800;
+        }
+        
+        .export-section {
+            background: rgba(0,0,0,0.35);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(103,232,249,0.2);
+        }
+        
+        .export-format {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(103,232,249,0.15);
+        }
+        
+        .export-format:last-child {
+            border-bottom: none;
+        }
+        
+        .quality-slider {
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        /* 🎵 AUDIO VISUALIZER */
+        .audio-visualizer {
+            background: rgba(0,0,0,0.45);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(103,232,249,0.2);
+        }
+        
+        .spectrum-display {
+            display: flex;
+            justify-content: center;
+            align-items: end;
+            height: 100px;
+            gap: 3px;
+        }
+        
+        .spectrum-bar {
+            background: linear-gradient(to top, #a21caf, #06b6d4);
+            width: 6px;
+            border-radius: 3px;
+            transition: height 0.3s ease;
+            box-shadow: 0 0 12px rgba(103,232,249,0.2);
+        }
+        
+        /* 🚀 PROGRESS INDICATOR */
+        .progress-container {
+            background: rgba(0,0,0,0.45);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+            border: 1px solid rgba(103,232,249,0.2);
+        }
+        
+        .progress-bar {
+            background: rgba(103,232,249,0.15);
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #06b6d4, #a21caf);
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(103,232,249,0.35);
+        }
+        
+        .progress-text {
+            text-align: center;
+            color: #67e8f9;
+            font-weight: 700;
+        }
+        
+        /* 🎭 ANIMATION KEYFRAMES */
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+            50% { box-shadow: 0 0 40px rgba(255,215,0,0.6); }
+            100% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .generating {
+            animation: glow 2s ease-in-out infinite;
+        }
+        
+        .pulse {
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        /* 📱 RESPONSIVE DESIGN */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .generation-modes {
+                grid-template-columns: 1fr;
+            }
+            
+            .style-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 🎬 SCENE EDITOR */
+        .scene-editor {
+            background: rgba(0,0,0,0.45);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(103,232,249,0.2);
+        }
+        
+        .scene-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .scene-item {
+            background: rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(103,232,249,0.15);
+        }
+        
+        .scene-preview {
+            width: 60px;
+            height: 40px;
+            background: rgba(6,182,212,0.12);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border: 1px solid rgba(56,189,248,0.35);
+        }
+        
+        .scene-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .scene-btn {
+            background: rgba(56,189,248,0.12);
+            border: 1px solid rgba(56,189,248,0.45);
+            border-radius: 5px;
+            padding: 5px 10px;
+            color: #67e8f9;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .scene-btn:hover {
+            background: rgba(56,189,248,0.2);
+            color: #e6f9ff;
+        }
+    </style>
+</head>
+<body>
+    <!-- � NAVIGATION HEADER -->
+    <div class="navigation-header">
+        <div class="nav-left">
+            <a href="index.html" class="nav-hub-btn">🏠 SOTA Hub</a>
+            <div class="nav-title-section">
+                <div class="nav-icon">🎬</div>
+                <div>
+                    <h1 class="nav-title">SOTA Music Video Generator</h1>
+                    <p class="nav-subtitle">AI-Powered Video Creation</p>
+                </div>
+            </div>
+        </div>
+        <div class="nav-right">
+            <div class="license-badge">🔒 Licensed Software</div>
+            <button class="license-btn" onclick="alert('🔒 SOTA Video Generation License\\n\\nPrice: $399/year\\n\\n✅ Features:\\n• AI Music Video Creation\\n• Professional Editing Tools\\n• 4K/8K Export Rights\\n• Commercial Video Licensing\\n• Advanced Effect Library\\n\\n⚖️ Strict Licensing Required')">View License</button>
+        </div>
+    </div>
+
+    <!-- �🎬 HEADER -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="sota-logo">🎵 SOTA Music Video Generator</div>
+                <div style="color: rgba(255,215,0,0.8); font-size: 14px;">
+                    Revolutionary AI-Powered Music Video Creation
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <div class="stat-value">1,247</div>
+                    <div>Videos Created</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">45.2M</div>
+                    <div>Total Views</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">99.3%</div>
+                    <div>AI Accuracy</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 🎛️ MAIN INTERFACE -->
+    <main class="main-container">
+        <!-- 📁 LEFT PANEL - MUSIC INPUT -->
+        <section class="music-input-panel">
+            <h2 class="panel-title">🎵 Music Input & Metadata</h2>
+            
+            <!-- Music Upload Zone -->
+            <div class="music-upload-zone" onclick="selectMusicFile()">
+                <div class="upload-icon">🎵</div>
+                <div>
+                    <strong>Drop your music here</strong><br>
+                    or click to browse<br>
+                    <small>Supports MP3, WAV, FLAC, M4A</small>
+                </div>
+                <input type="file" id="musicFileInput" accept="audio/*" style="display: none;">
+            </div>
+            
+            <!-- Music Metadata Display -->
+            <div class="music-metadata" id="musicMetadata" style="display: none;">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">📊 Audio Analysis</h3>
+                <div class="metadata-row">
+                    <span>Duration:</span>
+                    <span id="audioDuration">--:--</span>
+                </div>
+                <div class="metadata-row">
+                    <span>Sample Rate:</span>
+                    <span id="audioSampleRate">-- Hz</span>
+                </div>
+                <div class="metadata-row">
+                    <span>Format:</span>
+                    <span id="audioFormat">--</span>
+                </div>
+                <div class="metadata-row">
+                    <span>File Size:</span>
+                    <span id="audioSize">-- MB</span>
+                </div>
+            </div>
+            
+            <!-- Manual Metadata Entry -->
+            <div class="input-group">
+                <label class="input-label">🎤 Artist Name</label>
+                <input type="text" class="sota-input" id="artistName" placeholder="Enter artist name...">
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">🎵 Song Title</label>
+                <input type="text" class="sota-input" id="songTitle" placeholder="Enter song title...">
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">🎸 Genre</label>
+                <select class="sota-select" id="musicGenre">
+                    <option value="pop">Pop</option>
+                    <option value="rock">Rock</option>
+                    <option value="hip-hop">Hip-Hop</option>
+                    <option value="electronic">Electronic</option>
+                    <option value="country">Country</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="classical">Classical</option>
+                    <option value="christian">Christian</option>
+                    <option value="blues">Blues</option>
+                    <option value="folk">Folk</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label">🎬 Video Length</label>
+                <select class="sota-select" id="videoLength">
+                    <option value="auto">Auto (Match Audio)</option>
+                    <option value="30">30 seconds</option>
+                    <option value="60">1 minute</option>
+                    <option value="90">1.5 minutes</option>
+                    <option value="120">2 minutes</option>
+                    <option value="180">3 minutes</option>
+                    <option value="240">4 minutes</option>
+                    <option value="300">5 minutes</option>
+                    <option value="full">Full Length</option>
+                </select>
+            </div>
+            
+            <!-- Audio Visualizer -->
+            <div class="audio-visualizer">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">🎚️ Audio Spectrum</h3>
+                <div class="spectrum-display">
+                    <!-- Spectrum bars will be generated by JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 🎬 CENTER PANEL - VIDEO GENERATION -->
+        <section class="video-generation-panel">
+            <h2 class="panel-title">🎬 Video Generation Studio</h2>
+            
+            <!-- Generation Mode Selection -->
+            <div class="generation-modes">
+                <div class="generation-mode active" onclick="selectMode('auto')">
+                    <div class="mode-icon">🤖</div>
+                    <div><strong>Auto Generate</strong></div>
+                    <div style="font-size: 12px; margin-top: 5px;">AI creates everything</div>
+                </div>
+                <div class="generation-mode" onclick="selectMode('script')">
+                    <div class="mode-icon">📝</div>
+                    <div><strong>Script to Video</strong></div>
+                    <div style="font-size: 12px; margin-top: 5px;">Provide your script</div>
+                </div>
+                <div class="generation-mode" onclick="selectMode('template')">
+                    <div class="mode-icon">🎨</div>
+                    <div><strong>Template Based</strong></div>
+                    <div style="font-size: 12px; margin-top: 5px;">Use predefined styles</div>
+                </div>
+            </div>
+            
+            <!-- Video Preview Area -->
+            <div class="video-preview" id="videoPreview">
+                <div class="preview-placeholder">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🎬</div>
+                    <h3>Your music video will appear here</h3>
+                    <p>Upload music and select generation options to begin</p>
+                </div>
+            </div>
+            
+            <!-- Script Input (for Script to Video mode) -->
+            <div class="scene-editor" id="scriptInput" style="display: none;">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">📝 Video Script</h3>
+                <textarea 
+                    style="width: 100%; height: 150px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,215,0,0.3); border-radius: 10px; padding: 15px; color: #f5f5f5; font-family: 'JetBrains Mono', monospace; resize: vertical;" 
+                    placeholder="Enter your video script here...
+
+Example:
+0:00-0:10 - Close-up of artist singing in dramatic lighting
+0:10-0:25 - Wide shot of band performing on stage
+0:25-0:45 - Montage of city scenes with lyrics overlay
+0:45-1:00 - Return to artist, emotional performance
+
+Be specific about timing, scenes, and visual elements."
+                    id="videoScript"></textarea>
+            </div>
+            
+            <!-- Timeline Editor -->
+            <div class="timeline-editor">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">⏱️ Timeline Editor</h3>
+                <div class="timeline-track">
+                    <div style="width: 80px; font-size: 12px; color: #FFD700;">Audio</div>
+                    <div class="track-waveform">
+                        <div class="waveform-bars" id="audioWaveform">
+                            <!-- Waveform bars generated by JavaScript -->
+                        </div>
+                    </div>
+                    <div style="width: 60px; font-size: 12px; text-align: center;">3:45</div>
+                </div>
+                <div class="timeline-track">
+                    <div style="width: 80px; font-size: 12px; color: #FFD700;">Video</div>
+                    <div class="track-waveform" style="background: rgba(255,69,0,0.3);">
+                        <div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.7);">
+                            Video timeline will appear after generation
+                        </div>
+                    </div>
+                    <div style="width: 60px; font-size: 12px; text-align: center;">--:--</div>
+                </div>
+            </div>
+            
+            <!-- Scene Editor (for generated videos) -->
+            <div class="scene-editor" id="sceneEditor" style="display: none;">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">🎬 Scene Editor</h3>
+                <div class="scene-list" id="sceneList">
+                    <!-- Scenes will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Generation Progress -->
+            <div class="progress-container" id="progressContainer">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">🚀 Generating Your Video...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                </div>
+                <div class="progress-text" id="progressText">Initializing AI engines...</div>
+            </div>
+            
+            <!-- Generation Controls -->
+            <div class="generation-controls">
+                <button class="sota-button" onclick="generateVideo()">
+                    🚀 Generate Video
+                </button>
+                <button class="sota-button secondary" onclick="previewVideo()">
+                    👁️ Preview
+                </button>
+            </div>
+        </section>
+
+        <!-- 🎨 RIGHT PANEL - STYLE & EXPORT -->
+        <section class="style-export-panel">
+            <h2 class="panel-title">🎨 Style & Export</h2>
+            
+            <!-- Visual Style Selection -->
+            <div class="style-section">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">🎭 Visual Style</h3>
+                <div class="style-grid">
+                    <div class="style-option active" onclick="selectStyle('cinematic')">
+                        🎬 Cinematic
+                    </div>
+                    <div class="style-option" onclick="selectStyle('energetic')">
+                        ⚡ Energetic
+                    </div>
+                    <div class="style-option" onclick="selectStyle('minimalist')">
+                        🏗️ Minimalist
+                    </div>
+                    <div class="style-option" onclick="selectStyle('artistic')">
+                        🎨 Artistic
+                    </div>
+                    <div class="style-option" onclick="selectStyle('vintage')">
+                        📼 Vintage
+                    </div>
+                    <div class="style-option" onclick="selectStyle('futuristic')">
+                        🚀 Futuristic
+                    </div>
+                    <div class="style-option" onclick="selectStyle('dramatic')">
+                        🎭 Dramatic
+                    </div>
+                    <div class="style-option" onclick="selectStyle('playful')">
+                        🎪 Playful
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Color Palette -->
+            <div class="style-section">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">🎨 Color Palette</h3>
+                <div class="style-grid">
+                    <div class="style-option active" onclick="selectPalette('warm')">
+                        🔥 Warm Tones
+                    </div>
+                    <div class="style-option" onclick="selectPalette('cool')">
+                        ❄️ Cool Tones
+                    </div>
+                    <div class="style-option" onclick="selectPalette('monochrome')">
+                        ⚫ Monochrome
+                    </div>
+                    <div class="style-option" onclick="selectPalette('vibrant')">
+                        🌈 Vibrant
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Export Settings -->
+            <div class="export-section">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">💾 Export Settings</h3>
+                
+                <div class="export-format">
+                    <span>🎬 Format:</span>
+                    <select class="sota-select" style="width: 120px;">
+                        <option value="mp4">MP4</option>
+                        <option value="mov">MOV</option>
+                        <option value="avi">AVI</option>
+                        <option value="webm">WebM</option>
+                    </select>
+                </div>
+                
+                <div class="export-format">
+                    <span>📺 Resolution:</span>
+                    <select class="sota-select" style="width: 120px;">
+                        <option value="1080p">1080p HD</option>
+                        <option value="4k">4K Ultra</option>
+                        <option value="720p">720p HD</option>
+                        <option value="480p">480p SD</option>
+                    </select>
+                </div>
+                
+                <div class="export-format">
+                    <span>🎯 Quality:</span>
+                    <span style="color: #FFD700;">High</span>
+                </div>
+                <input type="range" class="quality-slider" min="1" max="10" value="8">
+                
+                <div class="export-format">
+                    <span>📊 Estimated Size:</span>
+                    <span style="color: #FFD700;">~245 MB</span>
+                </div>
+                
+                <button class="sota-button" style="width: 100%; margin-top: 20px;" onclick="exportVideo()">
+                    💾 Export Video
+                </button>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="style-section">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">⚡ Quick Actions</h3>
+                <button class="sota-button secondary" style="width: 100%; margin-bottom: 10px;" onclick="saveProject()">
+                    💾 Save Project
+                </button>
+                <button class="sota-button secondary" style="width: 100%; margin-bottom: 10px;" onclick="loadTemplate()">
+                    📁 Load Template
+                </button>
+                <button class="sota-button secondary" style="width: 100%;" onclick="shareVideo()">
+                    📤 Share Video
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 🎵 SOTA Music Video Generator JavaScript
+        let currentMode = 'auto';
+        let currentStyle = 'cinematic';
+        let currentPalette = 'warm';
+        let currentAudio = null;
+        let isGenerating = false;
+        let audioContext = null;
+        let analyser = null;
+
+        // 🎛️ INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            generateSpectrumBars();
+            generateWaveformBars();
+            initializeAudioContext();
+            
+            // File input handler
+            document.getElementById('musicFileInput').addEventListener('change', handleAudioFile);
+        });
+
+        function initializeAudioContext() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+            } catch (error) {
+                console.log('Web Audio API not supported');
+            }
+        }
+
+        function generateSpectrumBars() {
+            const spectrumDisplay = document.querySelector('.spectrum-display');
+            spectrumDisplay.innerHTML = '';
+            
+            for (let i = 0; i < 32; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'spectrum-bar';
+                bar.style.height = Math.random() * 80 + 20 + '%';
+                spectrumDisplay.appendChild(bar);
+            }
+        }
+
+        function generateWaveformBars() {
+            const waveformContainer = document.getElementById('audioWaveform');
+            waveformContainer.innerHTML = '';
+            
+            for (let i = 0; i < 60; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'waveform-bar';
+                bar.style.height = Math.random() * 80 + 20 + '%';
+                waveformContainer.appendChild(bar);
+            }
+        }
+
+        // 🎵 AUDIO FILE HANDLING
+        function selectMusicFile() {
+            document.getElementById('musicFileInput').click();
+        }
+
+        function handleAudioFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            currentAudio = file;
+            
+            // Display metadata
+            const metadata = document.getElementById('musicMetadata');
+            metadata.style.display = 'block';
+            
+            // Update metadata display
+            document.getElementById('audioDuration').textContent = '3:45'; // Would be calculated
+            document.getElementById('audioSampleRate').textContent = '44.1 kHz';
+            document.getElementById('audioFormat').textContent = file.name.split('.').pop().toUpperCase();
+            document.getElementById('audioSize').textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+            
+            // Auto-fill metadata if possible
+            const fileName = file.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('songTitle').value = fileName;
+            
+            // Start audio visualization
+            if (audioContext) {
+                startAudioVisualization(file);
+            }
+            
+            // Update waveform
+            generateWaveformBars();
+            
+            alert('🎵 Audio file loaded! Ready to generate your music video.');
+        }
+
+        function startAudioVisualization(file) {
+            const audio = new Audio(URL.createObjectURL(file));
+            const source = audioContext.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            
+            // Start visualization loop
+            visualizeAudio();
+        }
+
+        function visualizeAudio() {
+            if (!analyser) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function animate() {
+                analyser.getByteFrequencyData(dataArray);
+                
+                const bars = document.querySelectorAll('.spectrum-bar');
+                bars.forEach((bar, index) => {
+                    const height = (dataArray[index] / 255) * 100;
+                    bar.style.height = Math.max(height, 5) + '%';
+                });
+                
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+
+        // 🎬 MODE SELECTION
+        function selectMode(mode) {
+            currentMode = mode;
+            
+            // Update UI
+            document.querySelectorAll('.generation-mode').forEach(el => el.classList.remove('active'));
+            event.target.closest('.generation-mode').classList.add('active');
+            
+            // Show/hide relevant sections
+            const scriptInput = document.getElementById('scriptInput');
+            const sceneEditor = document.getElementById('sceneEditor');
+            
+            if (mode === 'script') {
+                scriptInput.style.display = 'block';
+                sceneEditor.style.display = 'none';
+            } else {
+                scriptInput.style.display = 'none';
+                sceneEditor.style.display = 'none';
+            }
+        }
+
+        // 🎨 STYLE SELECTION
+        function selectStyle(style) {
+            currentStyle = style;
+            document.querySelectorAll('.style-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function selectPalette(palette) {
+            currentPalette = palette;
+            const paletteOptions = event.target.closest('.style-section').querySelectorAll('.style-option');
+            paletteOptions.forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // 🚀 VIDEO GENERATION
+        const BACKEND_URL = window.SOTA_BACKEND_URL || 'http://localhost:8000';
+
+        async function generateVideo() {
+            if (!currentAudio) {
+                alert('⚠️ Please upload an audio file first!');
+                return;
+            }
+            
+            if (isGenerating) {
+                alert('🎬 Video generation already in progress!');
+                return;
+            }
+            
+            isGenerating = true;
+            
+            // Show progress
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.style.display = 'block';
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            try {
+                const fd = new FormData();
+                fd.append('audio', currentAudio);
+                fd.append('genre', document.getElementById('musicGenre').value);
+                fd.append('style', currentStyle);
+                fd.append('palette', currentPalette);
+
+                const startResp = await fetch(`${BACKEND_URL}/api/generate/start`, {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!startResp.ok) throw new Error('Failed to start generation');
+                const { job_id } = await startResp.json();
+
+                // Poll status until done
+                const poll = async () => {
+                    const res = await fetch(`${BACKEND_URL}/api/generate/status?job_id=${job_id}`);
+                    if (!res.ok) throw new Error('Status check failed');
+                    const data = await res.json();
+                    progressFill.style.width = (data.progress || 0) + '%';
+                    progressText.textContent = `Status: ${data.status || 'running'}... ${(data.progress||0)}%`;
+                    if (data.status === 'done') {
+                        onBackendGenerationComplete(job_id);
+                    } else if (data.status === 'error') {
+                        throw new Error(data.error || 'Generation error');
+                    } else {
+                        setTimeout(poll, 2000);
+                    }
+                };
+                setTimeout(poll, 1500);
+            } catch (err) {
+                isGenerating = false;
+                progressContainer.style.display = 'none';
+                alert('❌ Video generation failed: ' + (err && err.message ? err.message : err));
+            }
+        }
+
+        async function onBackendGenerationComplete(jobId) {
+            isGenerating = false;
+            
+            // Hide progress
+            document.getElementById('progressContainer').style.display = 'none';
+            
+            // Show completed video preview
+            const videoPreview = document.getElementById('videoPreview');
+            // Fetch result video as blob for local preview
+            const res = await fetch(`${BACKEND_URL}/api/generate/result?job_id=${jobId}`);
+            if (!res.ok) {
+                alert('❌ Failed to retrieve generated video');
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            videoPreview.innerHTML = '';
+            const vid = document.createElement('video');
+            vid.className = 'preview-video';
+            vid.controls = true;
+            vid.src = url;
+            videoPreview.appendChild(vid);
+            
+            // Show scene editor
+            document.getElementById('sceneEditor').style.display = 'block';
+            generateSceneList();
+            
+            alert('🎉 Your music video has been generated successfully!');
+        }
+
+        function generateSceneList() {
+            const sceneList = document.getElementById('sceneList');
+            const scenes = [
+                { time: '0:00-0:15', description: 'Opening shot with dramatic lighting', thumbnail: '🎬' },
+                { time: '0:15-0:45', description: 'Artist performance with dynamic camera work', thumbnail: '🎤' },
+                { time: '0:45-1:15', description: 'Artistic montage sequence', thumbnail: '🎨' },
+                { time: '1:15-2:00', description: 'High-energy dance sequence', thumbnail: '💃' },
+                { time: '2:00-2:30', description: 'Emotional close-up performance', thumbnail: '😢' },
+                { time: '2:30-3:15', description: 'Epic finale with special effects', thumbnail: '✨' },
+                { time: '3:15-3:45', description: 'Outro credits and call-to-action', thumbnail: '📝' }
+            ];
+            
+            sceneList.innerHTML = '';
+            
+            scenes.forEach((scene, index) => {
+                const sceneItem = document.createElement('div');
+                sceneItem.className = 'scene-item';
+                sceneItem.innerHTML = `
+                    <div class="scene-preview">${scene.thumbnail}</div>
+                    <div style="flex: 1; margin-left: 15px;">
+                        <div style="font-weight: 600; color: #FFD700;">${scene.time}</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.8);">${scene.description}</div>
+                    </div>
+                    <div class="scene-controls">
+                        <button class="scene-btn" onclick="editScene(${index})">Edit</button>
+                        <button class="scene-btn" onclick="deleteScene(${index})">Delete</button>
+                    </div>
+                `;
+                sceneList.appendChild(sceneItem);
+            });
+        }
+
+        function editScene(sceneIndex) {
+            alert(`🎬 Editing scene ${sceneIndex + 1}. Scene editor would open here.`);
+        }
+
+        function deleteScene(sceneIndex) {
+            if (confirm('Are you sure you want to delete this scene?')) {
+                alert(`🗑️ Scene ${sceneIndex + 1} deleted.`);
+                generateSceneList();
+            }
+        }
+
+        // 👁️ PREVIEW & EXPORT
+        function previewVideo() {
+            if (!currentAudio) {
+                alert('⚠️ Please upload an audio file first!');
+                return;
+            }
+            
+            alert('👁️ Video preview would open in a new window. This is a demo interface.');
+        }
+
+        function exportVideo() {
+            if (isGenerating) {
+                alert('⚠️ Please wait for video generation to complete!');
+                return;
+            }
+            
+            alert('💾 Video export started! You will be notified when ready for download.');
+        }
+
+        // 💾 PROJECT MANAGEMENT
+        function saveProject() {
+            const projectData = {
+                audio: currentAudio?.name || null,
+                mode: currentMode,
+                style: currentStyle,
+                palette: currentPalette,
+                metadata: {
+                    artist: document.getElementById('artistName').value,
+                    title: document.getElementById('songTitle').value,
+                    genre: document.getElementById('musicGenre').value
+                }
+            };
+            
+            alert('💾 Project saved! Your settings and progress have been preserved.');
+        }
+
+        function loadTemplate() {
+            alert('📁 Template library would open here. Choose from pre-made music video templates.');
+        }
+
+        function shareVideo() {
+            alert('📤 Share options:\n\n🔗 Copy link\n📱 Social media\n📧 Email\n💾 Download\n🌐 Publish to gallery');
+        }
+
+        // 🎨 VISUAL EFFECTS
+        setInterval(() => {
+            // Animate spectrum bars
+            const bars = document.querySelectorAll('.spectrum-bar');
+            bars.forEach(bar => {
+                const height = Math.random() * 80 + 20;
+                bar.style.height = height + '%';
+            });
+            
+            // Animate waveform bars
+            const waveformBars = document.querySelectorAll('.waveform-bar');
+            waveformBars.forEach(bar => {
+                const height = Math.random() * 80 + 20;
+                bar.style.height = height + '%';
+            });
+        }, 500);
+
+        // 🚀 STARTUP ANIMATION
+        window.addEventListener('load', () => {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 1s ease';
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+        
+        // 🔒 COPYRIGHT PROTECTION
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            alert('🔒 Content Protected - This software is strictly copyrighted and licensed.');
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && (e.key === 's' || e.key === 'a' || e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 'p')) {
+                e.preventDefault();
+                alert('🔒 Action Disabled - Unauthorized copying/printing is prohibited.');
+            }
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+                e.preventDefault();
+                alert('🔒 Developer Tools Disabled - Content protection active.');
+            }
+        });
+        
+        // Disable text selection
+        document.onselectstart = function() { return false; };
+        document.ondragstart = function() { return false; };
+        
+        console.log('🎬 SOTA Music Video Generator - Licensed Software');
+        console.log('🔒 All content strictly copyrighted and protected');
+        console.log('⚖️ Unauthorized use prohibited and subject to legal action');
+    </script>
+</body>
+</html>

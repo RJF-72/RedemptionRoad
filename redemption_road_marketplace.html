@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redemption Road Marketplace</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #070b14 0%, #0a0f1f 40%, #0b1225 100%); color: #eafaff; }
+    .header { position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, rgba(5,8,12,0.95) 0%, rgba(10,10,15,0.95) 100%); border-bottom: 2px solid rgba(56,189,248,0.35); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, #06b6d4, #a21caf); box-shadow: 0 0 24px rgba(103,232,249,0.25); }
+  .brand h1 { font-size: 20px; font-weight: 800; background: linear-gradient(135deg, #67e8f9, #e879f9); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav a { text-decoration: none; color: #eafaff; padding: 8px 12px; border: 1px solid rgba(56,189,248,0.35); border-radius: 10px; background: rgba(255,255,255,0.06); margin-left: 10px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .nav a:hover { background: rgba(56,189,248,0.12); box-shadow: 0 6px 18px rgba(6,182,212,0.25); }
+    .container { max-width: 1200px; margin: 32px auto; padding: 0 20px; }
+    .hero { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 28px; text-align: center; box-shadow: 0 20px 60px rgba(6,182,212,0.15) inset; }
+    .hero h2 { font-size: 28px; font-weight: 800; color: #c4fbff; margin-bottom: 10px; }
+    .hero p { color: rgba(255,255,255,0.85); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 24px; }
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 18px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(6,182,212,0.2); }
+    .card h3 { color: #67e8f9; margin-bottom: 6px; font-size: 16px; }
+    .card p { color: rgba(255,255,255,0.8); font-size: 13px; }
+    .cta { margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn { padding: 10px 16px; border-radius: 10px; border: 1px solid rgba(56,189,248,0.45); background: linear-gradient(135deg, #06b6d4, #a21caf); color: #fff; font-weight: 700; text-decoration: none; }
+    .btn.secondary { background: transparent; color: #67e8f9; }
+    .footer { margin: 40px 0 24px; text-align: center; color: rgba(255,255,255,0.6); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo">🏪</div>
+      <h1>Redemption Road Marketplace</h1>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Home</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h2>Premium licenses, sounds, and pro assets</h2>
+      <p>Browse curated content for producers and creators. Seamless licensing and CPU‑friendly workflows.</p>
+      <div class="cta">
+        <a class="btn" href="pricing.html">View Plans</a>
+        <a class="btn secondary" href="contact.html">Become a Vendor</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h3>Genre Packs</h3>
+        <p>Country, rock, pop, jazz, blues — arrangement presets and instrument combos.</p>
+      </div>
+      <div class="card">
+        <h3>Video Looks</h3>
+        <p>Cinematic colorways and motion templates for the Music Video Generator.</p>
+      </div>
+      <div class="card">
+        <h3>Voice Tools</h3>
+        <p>Enhancement chains and presets designed for WarriorMic & Titan7 DAW.</p>
+      </div>
+      <div class="card">
+        <h3>Project Templates</h3>
+        <p>Starter projects for Synth/DAW with AI composer scenes and drum patterns.</p>
+      </div>
+    </section>
+
+    <p class="footer">© Redemption Road • All rights reserved</p>
+  </main>
+</body>
+</html>

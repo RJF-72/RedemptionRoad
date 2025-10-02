@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact & Support - SOTA Professional</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'JetBrains Mono',monospace;background:linear-gradient(145deg,#070b14 0%,#0a0f1f 40%,#0b1225 100%);color:#e5faff;overflow-x:hidden;min-height:100vh}
+
+  .topnav{background:linear-gradient(135deg,rgba(5,8,12,0.95) 0%,rgba(10,10,15,0.95) 100%);backdrop-filter:blur(40px);border-bottom:2px solid rgba(56,189,248,0.35);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 5px 25px rgba(0,0,0,0.5);position:sticky;top:0;z-index:1001}
+    .brand{display:flex;align-items:center;gap:14px}
+  .brand-badge{width:40px;height:40px;background:linear-gradient(135deg,#06b6d4,#a21caf);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(6,182,212,0.35)}
+  .brand-title{font-size:22px;font-weight:700;background:linear-gradient(135deg,#67e8f9,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .nav-links{display:flex;gap:8px;align-items:center}
+  .nav-link{background:rgba(255,255,255,0.06);border:1px solid rgba(56,189,248,0.35);border-radius:10px;padding:8px 12px;color:#e5faff;font-weight:600;font-size:12px;text-decoration:none;text-transform:uppercase;letter-spacing:1px;transition:.2s}
+  .nav-link:hover{background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.5)}
+  .nav-link.active{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;border-color:rgba(56,189,248,0.5)}
+
+    .container{max-width:1200px;margin:26px auto;padding:0 24px;display:grid;grid-template-columns:2fr 1fr;gap:22px}
+  .card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:20px}
+  .title{font-weight:800;color:#67e8f9;margin-bottom:12px}
+    .label{font-size:12px;color:rgba(255,255,255,0.8);margin-bottom:6px}
+  .input,.textarea{width:100%;padding:12px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#e5faff;font-family:'JetBrains Mono',monospace;font-size:13px}
+    .textarea{min-height:140px;resize:vertical}
+  .input:focus,.textarea:focus{outline:none;border-color:rgba(56,189,248,0.5);box-shadow:0 0 20px rgba(56,189,248,0.2)}
+  .btn{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;border:none;padding:14px;border-radius:12px;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;cursor:pointer;transition:all .3s;text-transform:uppercase;letter-spacing:1px;text-align:center;text-decoration:none}
+  .btn:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(6,182,212,0.3)}
+
+  .faq-item{border-top:1px solid rgba(255,255,255,0.1);padding:12px 0}
+  .faq-q{color:#e879f9;font-weight:700}
+    .faq-a{font-size:12px;color:rgba(255,255,255,0.85);margin-top:6px}
+
+    @media (max-width:900px){.container{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="topnav">
+    <div class="brand">
+      <div class="brand-badge">📞</div>
+      <div>
+        <div class="brand-title">Contact & Support</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:1px;text-transform:uppercase">We're here to help</div>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="synthesizer.html">Synthesizer</a>
+      <a class="nav-link" href="daw.html">DAW</a>
+      <a class="nav-link" href="voice.html">Voice</a>
+      <a class="nav-link" href="pricing.html">Pricing</a>
+      <a class="nav-link active" href="contact.html">Contact</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="title">Send us a message</div>
+      <div class="label">Your email</div>
+      <input class="input" id="email" placeholder="you@example.com" />
+      <div class="label" style="margin-top:10px">Subject</div>
+      <input class="input" id="subject" placeholder="How can we help?" />
+      <div class="label" style="margin-top:10px">Message</div>
+      <textarea class="textarea" id="message" placeholder="Tell us a bit more..."></textarea>
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <button class="btn" onclick="sendMessage()">Send</button>
+        <a class="btn" style="background:transparent;color:#FFD700;border:2px solid #FFD700" href="mailto:rjflanary1@gmail.com?subject=SOTA%20Support">Email directly</a>
+      </div>
+      <div class="label" style="margin-top:12px">Or DM: @redemptionseven on PayPal</div>
+    </div>
+
+    <div class="card">
+      <div class="title">FAQ</div>
+      <div class="faq-item">
+        <div class="faq-q">Do you support Stripe?</div>
+        <div class="faq-a">Yes. If you prefer Stripe invoicing instead of PayPal, contact us with your plan and we’ll send an invoice.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">When will I get access?</div>
+        <div class="faq-a">Right after payment confirmation. You’ll receive links and activation instructions via email.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I use it commercially?</div>
+        <div class="faq-a">Yes. All paid plans include a commercial-use license according to the plan tier.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function sendMessage(){
+      var email = (document.getElementById('email').value||'').trim();
+      var subject = (document.getElementById('subject').value||'').trim();
+      var message = (document.getElementById('message').value||'').trim();
+      if(!email || !subject || !message){
+        alert('Please complete all fields.');
+        return;
+      }
+      var mailto = 'mailto:rjflanary1@gmail.com?subject=' + encodeURIComponent('[SOTA] ' + subject) + '&body=' + encodeURIComponent('From: ' + email + '\n\n' + message);
+      window.location.href = mailto;
+    }
+  </script>
+</body>
+</html>

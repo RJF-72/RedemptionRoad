@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>WarriorMic – AI Vocal Enhancement & Cloning</title>
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+		*{margin:0;padding:0;box-sizing:border-box}
+	body{font-family:'JetBrains Mono',monospace;background:linear-gradient(145deg,#070b14 0%,#0a0f1f 40%,#0b1225 100%);color:#e5faff;overflow-x:hidden;min-height:100vh}
+
+		/* Global buttons/inputs */
+	.control-btn{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;border:none;padding:15px;border-radius:12px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;cursor:pointer;transition:all .3s;text-transform:uppercase;letter-spacing:1px}
+	.control-btn:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(6,182,212,0.3)}
+	.control-btn.secondary{background:transparent;color:#67e8f9;border:1px solid rgba(56,189,248,0.5)}
+	.control-btn.secondary:hover{background:rgba(56,189,248,0.12)}
+		.control-btn.recording{background:linear-gradient(135deg,#FF4444,#CC0000);color:#fff;animation:recPulse 1s ease-in-out infinite}
+		@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,0.7)}50%{box-shadow:0 0 0 10px rgba(255,68,68,0)}}
+
+	.warrior-input,.warrior-select{width:100%;padding:12px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#e5faff;font-family:'JetBrains Mono',monospace;font-size:13px}
+	.warrior-input:focus,.warrior-select:focus{outline:none;border-color:rgba(56,189,248,0.5);box-shadow:0 0 20px rgba(56,189,248,0.2)}
+
+		/* Top navigation */
+	.topnav{background:linear-gradient(135deg,rgba(5,8,12,0.95) 0%,rgba(10,10,15,0.95) 100%);backdrop-filter:blur(40px);border-bottom:2px solid rgba(56,189,248,0.35);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 5px 25px rgba(0,0,0,0.5);position:sticky;top:0;z-index:1001}
+		.brand{display:flex;align-items:center;gap:14px}
+	.brand-badge{width:40px;height:40px;background:linear-gradient(135deg,#06b6d4,#a21caf);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(6,182,212,0.35)}
+	.brand-title{font-size:22px;font-weight:700;background:linear-gradient(135deg,#67e8f9,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+		.nav-links{display:flex;gap:8px;align-items:center}
+	.nav-link{background:rgba(255,255,255,0.06);border:1px solid rgba(56,189,248,0.35);border-radius:10px;padding:8px 12px;color:#e5faff;font-weight:600;font-size:12px;text-decoration:none;text-transform:uppercase;letter-spacing:1px;transition:.2s}
+	.nav-link:hover{background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.5)}
+	.nav-link.active{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;border-color:rgba(56,189,248,0.5)}
+
+		/* Header stats */
+	.header{background:linear-gradient(135deg,rgba(56,189,248,0.12),rgba(168,85,247,0.12));backdrop-filter:blur(20px);padding:20px;border-bottom:2px solid rgba(56,189,248,0.35);position:sticky;top:62px;z-index:1000}
+		.header-content{max-width:1800px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+		.logo-section{display:flex;align-items:center;gap:25px}
+	.warrior-logo{font-size:28px;font-weight:700;background:linear-gradient(45deg,#67e8f9,#e879f9,#67e8f9,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 0 30px rgba(6,182,212,0.35)}
+		.header-stats{display:flex;gap:20px;font-size:14px}
+	.stat-item{text-align:center;padding:10px 14px;background:rgba(255,255,255,0.05);border-radius:12px;border:1px solid rgba(255,255,255,0.1);transition:.3s}
+	.stat-item:hover{background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.5);transform:translateY(-2px)}
+	.stat-value{font-size:18px;font-weight:700;color:#67e8f9;text-shadow:0 0 10px rgba(6,182,212,0.35)}
+
+		/* Main layout */
+		.main-container{max-width:1900px;margin:0 auto;padding:25px;display:grid;grid-template-columns:420px 1fr 380px;gap:25px;min-height:calc(100vh - 140px)}
+
+		/* Left panel */
+	.mic-input-panel{background:rgba(255,255,255,0.04);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:25px;padding:30px;height:fit-content}
+	.panel-title{font-size:20px;font-weight:700;color:#67e8f9;margin-bottom:20px;text-align:center;text-shadow:0 0 15px rgba(6,182,212,0.35)}
+	.mic-status-display{background:rgba(0,0,0,0.4);border-radius:20px;padding:22px;margin-bottom:22px;text-align:center;border:1px solid rgba(255,255,255,0.1)}
+		.mic-icon{font-size:56px;margin-bottom:12px}
+		.mic-quality-indicator{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
+	.quality-bar{width:6px;height:38px;background:rgba(56,189,248,0.25);border-radius:3px;transition:all .3s}
+	.quality-bar.active{background:linear-gradient(to top,#06b6d4,#a21caf);box-shadow:0 0 10px rgba(6,182,212,0.35)}
+	.current-mic-info{background:rgba(255,255,255,0.05);border-radius:15px;padding:18px;margin-bottom:20px}
+	.info-row{display:flex;justify-content:space-between;margin-bottom:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.1)}
+		.info-row:last-child{border-bottom:none;margin-bottom:0}
+		.target-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+	.target-mic{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:.3s;font-size:11px}
+	.target-mic:hover{background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.5);transform:translateY(-2px)}
+	.target-mic.active{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;font-weight:700;box-shadow:0 5px 20px rgba(6,182,212,0.25)}
+		.target-price{font-size:10px;color:rgba(255,255,255,0.7);margin-top:5px}
+		.target-mic.active .target-price{color:rgba(0,0,0,0.7)}
+
+		/* Center panel */
+	.enhancement-panel{background:rgba(255,255,255,0.04);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:25px;padding:30px}
+		.ai-status-display{background:rgba(0,0,0,0.4);border-radius:20px;padding:22px;margin-bottom:22px;text-align:center}
+		.ai-brain-visual{width:110px;height:110px;margin:0 auto 16px;background:radial-gradient(circle,rgba(255,215,0,0.2),rgba(255,140,0,0.1));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;border:3px solid rgba(255,215,0,0.4)}
+		.enhancement-stages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+	.stage-item{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:15px;padding:16px;text-align:center;transition:.3s}
+	.stage-item.active{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;font-weight:700}
+	.stage-item.completed{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-weight:700}
+		.stage-icon{font-size:24px;margin-bottom:8px}
+		.stage-label{font-size:11px;font-weight:600}
+		.audio-waveform-display{background:rgba(0,0,0,0.5);border-radius:20px;padding:22px;margin-bottom:22px;min-height:280px}
+		.waveform-container{display:flex;justify-content:space-between;height:230px;align-items:end;gap:6px}
+		.waveform-section{flex:1;display:flex;flex-direction:column;align-items:center;gap:12px}
+	.waveform-label{font-size:12px;color:#67e8f9;font-weight:600}
+		.waveform-bars{display:flex;height:180px;align-items:end;gap:2px}
+	.waveform-bar{width:3px;background:linear-gradient(to top,#a21caf,#06b6d4);border-radius:2px;transition:height .3s ease}
+	.waveform-bars.original .waveform-bar{background:linear-gradient(to top,#556,#99b)}
+	.waveform-bars.enhanced .waveform-bar{background:linear-gradient(to top,#06b6d4,#67e8f9);box-shadow:0 0 5px rgba(6,182,212,0.35)}
+		.enhancement-controls{background:rgba(0,0,0,0.3);border-radius:15px;padding:18px;margin-bottom:18px}
+	.control-title{color:#67e8f9;font-weight:600;margin-bottom:10px;font-size:14px}
+		.slider-container{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+	.slider-label{font-size:12px;color:rgba(229,250,255,0.8);width:110px}
+	.warrior-slider{flex:1;height:6px;background:rgba(56,189,248,0.2);border-radius:3px;outline:none;appearance:none;-webkit-appearance:none}
+	.warrior-slider::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:18px;height:18px;background:#06b6d4;border-radius:50%;cursor:pointer;box-shadow:0 0 10px rgba(6,182,212,0.35)}
+	.slider-value{font-size:12px;color:#67e8f9;font-weight:600;width:40px;text-align:right}
+		.enhancement-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+		/* Right panel */
+	.results-panel{background:rgba(255,255,255,0.04);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:25px;padding:30px;height:fit-content}
+		.comparison-display{background:rgba(0,0,0,0.4);border-radius:15px;padding:18px;margin-bottom:20px}
+	.comparison-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1)}
+		.comparison-item:last-child{border-bottom:none}
+		.metric-name{font-size:12px;color:rgba(255,255,255,0.8)}
+		.metric-values{display:flex;gap:16px;font-size:12px}
+		.metric-before{color:#FF6B6B}
+		.metric-after{color:#32CD32;font-weight:700}
+	.target-mic-preview{background:rgba(255,255,255,0.05);border-radius:15px;padding:18px;margin-bottom:20px;text-align:center}
+	.target-mic-image{width:110px;height:110px;background:rgba(56,189,248,0.12);border-radius:15px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:42px}
+	.target-mic-name{font-weight:700;color:#67e8f9;margin-bottom:6px}
+		.target-mic-price{font-size:12px;color:rgba(255,255,255,0.7)}
+		.export-section{background:rgba(0,0,0,0.3);border-radius:15px;padding:18px;margin-bottom:18px}
+		.export-formats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+	.export-format{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:.2s;font-size:11px}
+	.export-format:hover{background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.5)}
+	.export-format.active{background:linear-gradient(135deg,#06b6d4,#a21caf);color:#fff;font-weight:700}
+		.quality-settings{margin-bottom:14px}
+		.quality-preset{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,215,0,0.15);font-size:12px}
+		.quality-preset:last-child{border-bottom:none}
+
+		/* Progress */
+		.progress-container{background:rgba(0,0,0,0.4);border-radius:20px;padding:20px;margin-bottom:18px;display:none}
+	.progress-bar{background:rgba(56,189,248,0.2);border-radius:12px;height:22px;overflow:hidden;margin-bottom:10px}
+	.progress-fill{background:linear-gradient(90deg,#06b6d4,#a21caf);height:100%;transition:width .3s;border-radius:12px}
+	.progress-text{text-align:center;color:#67e8f9;font-weight:600;font-size:14px}
+		.progress-stage{font-size:12px;color:rgba(255,255,255,0.8);text-align:center;margin-top:6px}
+
+		/* Textareas */
+	.warrior-textarea{width:100%;padding:12px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#e5faff;font-family:'JetBrains Mono',monospace;font-size:13px;resize:vertical;min-height:80px}
+	.warrior-textarea:focus{outline:none;border-color:rgba(56,189,248,0.5);box-shadow:0 0 20px rgba(56,189,248,0.2)}
+
+		/* Responsive */
+		@media (max-width:1600px){
+			.header{top:54px}
+			.main-container{grid-template-columns:1fr;gap:20px}
+			.enhancement-stages{grid-template-columns:1fr 1fr}
+			.target-grid{grid-template-columns:1fr}
+		}
+	</style>
+</head>
+<body>
+	<!-- Top navigation -->
+	<div class="topnav">
+		<div class="brand">
+			<div class="brand-badge">🎤</div>
+			<div>
+				<div class="brand-title">WarriorMic AI Enhancement</div>
+				<div style="font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:1px;text-transform:uppercase">Professional Vocal Enhancement & Cloning</div>
+			</div>
+		</div>
+		<div class="nav-links">
+			<a class="nav-link" href="index.html">Home</a>
+			<a class="nav-link" href="synthesizer.html">Synthesizer</a>
+			<a class="nav-link" href="daw.html">DAW</a>
+			<a class="nav-link active" href="voice.html">Voice</a>
+			<a class="nav-link" href="pricing.html">Pricing</a>
+			<a class="nav-link" href="contact.html">Contact</a>
+			<span class="nav-link" style="cursor:default;border-color:#DC143C;color:#DC143C">🔒 Licensed Software</span>
+			<button onclick="showLicense()" class="nav-link" style="background:transparent;border-color:#FFD700;color:#FFD700">View License</button>
+		</div>
+	</div>
+
+	<!-- Header -->
+	<header class="header">
+		<div class="header-content">
+			<div class="logo-section">
+				<div class="warrior-logo">🎤 WarriorMic AI Enhancement</div>
+				<div style="color:rgba(255,215,0,0.8);font-size:14px">Transform Any Microphone to Professional Studio Quality</div>
+			</div>
+			<div class="header-stats">
+				<div class="stat-item"><div class="stat-value">47,289</div><div>Voices Enhanced</div></div>
+				<div class="stat-item"><div class="stat-value">98.7%</div><div>Quality Improvement</div></div>
+				<div class="stat-item"><div class="stat-value">4.9/5</div><div>User Rating</div></div>
+			</div>
+		</div>
+	</header>
+
+	<main class="main-container">
+		<!-- Left: Input & Cloning -->
+		<section class="mic-input-panel">
+			<h2 class="panel-title">🎤 Microphone Input & Analysis</h2>
+			<div class="mic-status-display">
+				<div class="mic-icon">🎤</div>
+				<div style="color:#FFD700;font-weight:600;margin-bottom:12px">Microphone Status: Connected</div>
+				<div class="mic-quality-indicator">
+					<div class="quality-bar active"></div>
+					<div class="quality-bar active"></div>
+					<div class="quality-bar active"></div>
+					<div class="quality-bar"></div>
+					<div class="quality-bar"></div>
+					<div class="quality-bar"></div>
+					<div class="quality-bar"></div>
+					<div class="quality-bar"></div>
+				</div>
+				<div style="font-size:12px;color:rgba(255,255,255,0.8)">Input Level: Good | Background Noise: Low</div>
+			</div>
+
+			<div class="current-mic-info">
+				<h3 style="color:#FFD700;margin-bottom:12px;font-size:14px">📊 Current Microphone Analysis</h3>
+				<div class="info-row"><span>Device:</span><span style="color:#FFD700">Built-in Microphone</span></div>
+				<div class="info-row"><span>Frequency Response:</span><span style="color:#FF6B6B">Limited</span></div>
+				<div class="info-row"><span>Signal-to-Noise:</span><span style="color:#FF6B6B">45 dB</span></div>
+				<div class="info-row"><span>Dynamic Range:</span><span style="color:#FF6B6B">65 dB</span></div>
+				<div class="info-row"><span>Max SPL:</span><span style="color:#FF6B6B">110 dB</span></div>
+				<div class="info-row"><span>Estimated Value:</span><span style="color:#FFD700">$15</span></div>
+			</div>
+
+			<div>
+				<h3 style="color:#FFD700;margin-bottom:12px;font-size:14px">🎯 Target Professional Microphones</h3>
+				<div class="target-grid">
+					<div class="target-mic active" onclick="selectTarget('neumann-u87', this)">🏆 Neumann U87<div class="target-price">$3,700</div></div>
+					<div class="target-mic" onclick="selectTarget('sony-c37a', this)">🎵 Sony C-37A<div class="target-price">$4,500</div></div>
+					<div class="target-mic" onclick="selectTarget('akg-c12', this)">💎 AKG C12<div class="target-price">$8,000</div></div>
+					<div class="target-mic" onclick="selectTarget('telefunken-251', this)">👑 Telefunken ELA M 251<div class="target-price">$15,000</div></div>
+				</div>
+			</div>
+
+			<div class="recording-controls" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+				<button class="control-btn" id="recordBtn" onclick="toggleRecording()">🎤 Start Recording</button>
+				<button class="control-btn secondary" onclick="testMicrophone()">🔍 Test Mic</button>
+			</div>
+
+			<div class="input-group" style="margin-bottom:14px">
+				<label class="input-label" style="display:block;margin-bottom:6px;color:#FFD700;font-weight:600;font-size:13px">🎭 Voice Type</label>
+				<select class="warrior-select" id="voiceType">
+					<option value="male-baritone">Male Baritone</option>
+					<option value="male-tenor">Male Tenor</option>
+					<option value="female-alto">Female Alto</option>
+					<option value="female-soprano">Female Soprano</option>
+					<option value="auto-detect" selected>Auto-Detect</option>
+				</select>
+			</div>
+
+			<div class="input-group" style="margin-bottom:14px">
+				<label class="input-label" style="display:block;margin-bottom:6px;color:#FFD700;font-weight:600;font-size:13px">🎸 Music Genre</label>
+				<select class="warrior-select" id="musicGenre">
+					<option value="pop">Pop</option>
+					<option value="rock">Rock</option>
+					<option value="jazz">Jazz</option>
+					<option value="classical">Classical</option>
+					<option value="hip-hop">Hip-Hop</option>
+					<option value="country">Country</option>
+					<option value="electronic">Electronic</option>
+					<option value="christian">Christian</option>
+				</select>
+			</div>
+
+			<div class="input-group" style="margin-bottom:18px">
+				<label class="input-label" style="display:block;margin-bottom:6px;color:#FFD700;font-weight:600;font-size:13px">🌟 Enhancement Level</label>
+				<select class="warrior-select" id="enhancementLevel">
+					<option value="subtle">Subtle (Natural)</option>
+					<option value="moderate" selected>Moderate (Balanced)</option>
+					<option value="aggressive">Aggressive (Maximum)</option>
+					<option value="custom">Custom Settings</option>
+				</select>
+			</div>
+
+			<!-- Vocal Cloning -->
+			<div style="background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:15px;padding:18px;margin-top:18px">
+				<h3 style="color:#FFD700;margin-bottom:12px;font-size:14px">🧬 SOTA Vocal Cloning (Open Source)</h3>
+				<div class="input-group" style="margin-bottom:12px">
+					<label class="input-label" style="display:block;margin-bottom:6px;color:#FFD700;font-weight:600;font-size:13px">🎭 Clone Mode</label>
+					<select class="warrior-select" id="cloneMode">
+						<option value="train-new">Train New Voice Model</option>
+						<option value="load-existing">Load Existing Clone</option>
+						<option value="real-time">Real-Time Voice Conversion</option>
+						<option value="text-to-speech">Text-to-Speech Clone</option>
+					</select>
+				</div>
+				<div class="input-group" style="margin-bottom:12px">
+					<label class="input-label" style="display:block;margin-bottom:6px;color:#FFD700;font-weight:600;font-size:13px">📝 Training Data</label>
+					<button class="control-btn secondary" style="width:100%;margin-bottom:8px" onclick="uploadTrainingAudio()">📤 Upload Reference Audio (5-60 minutes)</button>
+					<div style="font-size:11px;color:rgba(255,255,255,0.7)">Recommended: Clear speech, multiple emotions, 44.1kHz+</div>
+				</div>
+				<div class="input-group" style="margin-bottom:12px">
+					<label class="input-label" style="display:block;margin-bottom:6px;color:#FFD700;font-weight:600;font-size:13px">🤖 SOTA Algorithm</label>
+					<select class="warrior-select" id="cloningAlgorithm">
+						<option value="sota-neural">SOTA Neural (Our Algorithm)</option>
+						<option value="sota-transformer">SOTA Transformer (Enhanced)</option>
+						<option value="sota-diffusion">SOTA Diffusion (Premium)</option>
+						<option value="sota-hybrid">SOTA Hybrid (Best Quality)</option>
+					</select>
+				</div>
+				<div class="recording-controls" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px">
+					<button class="control-btn" onclick="startVoiceCloning()">🧬 Start Cloning</button>
+					<button class="control-btn secondary" onclick="testClone()">🎤 Test Clone</button>
+				</div>
+				<div style="margin-top:10px;padding:12px;background:rgba(0,0,0,0.3);border-radius:10px">
+					<div style="color:#32CD32;font-weight:600;margin-bottom:6px">🔓 Open Source License</div>
+					<div style="font-size:11px;color:rgba(255,255,255,0.8)">SOTA Vocal Cloning algorithms are 100% open source under MIT License. Use, modify, and distribute freely for any purpose including commercial use.</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Center: Engine -->
+		<section class="enhancement-panel">
+			<h2 class="panel-title">🧠 AI Enhancement Engine</h2>
+			<div class="ai-status-display">
+				<div class="ai-brain-visual">🧠</div>
+				<h3 style="color:#FFD700;margin-bottom:8px">WarriorMic AI Status</h3>
+				<div style="font-size:14px;color:rgba(255,255,255,0.8)">Neural networks loaded and ready for enhancement</div>
+			</div>
+			<div class="enhancement-stages">
+				<div class="stage-item" id="stage1"><div class="stage-icon">🔍</div><div class="stage-label">Audio Analysis</div></div>
+				<div class="stage-item" id="stage2"><div class="stage-icon">🎯</div><div class="stage-label">Noise Reduction</div></div>
+				<div class="stage-item" id="stage3"><div class="stage-icon">⚡</div><div class="stage-label">Frequency Enhancement</div></div>
+				<div class="stage-item" id="stage4"><div class="stage-icon">✨</div><div class="stage-label">Professional Polish</div></div>
+			</div>
+			<div class="progress-container" id="progressContainer">
+				<h3 style="color:#FFD700;margin-bottom:10px">🚀 Enhancing Your Voice...</h3>
+				<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+				<div class="progress-text" id="progressText">Initializing AI enhancement algorithms...</div>
+				<div class="progress-stage" id="progressStage">Stage 1 of 4: Audio Analysis</div>
+			</div>
+			<div class="audio-waveform-display">
+				<div class="waveform-container">
+					<div class="waveform-section">
+						<div class="waveform-label">Original Audio</div>
+						<div class="waveform-bars original" id="originalWaveform"></div>
+					</div>
+					<div style="display:flex;align-items:center;font-size:24px;color:#FFD700">➡️</div>
+					<div class="waveform-section">
+						<div class="waveform-label">WarriorMic Enhanced</div>
+						<div class="waveform-bars enhanced" id="enhancedWaveform"></div>
+					</div>
+				</div>
+			</div>
+			<div class="enhancement-controls">
+				<div class="control-title">🎛️ Fine-Tune Enhancement</div>
+				<div class="slider-container"><div class="slider-label">Clarity</div><input type="range" class="warrior-slider" min="0" max="100" value="75" id="claritySlider" onchange="updateSliderValue('clarity', this.value)"><div class="slider-value" id="clarityValue">75%</div></div>
+				<div class="slider-container"><div class="slider-label">Warmth</div><input type="range" class="warrior-slider" min="0" max="100" value="60" id="warmthSlider" onchange="updateSliderValue('warmth', this.value)"><div class="slider-value" id="warmthValue">60%</div></div>
+				<div class="slider-container"><div class="slider-label">Presence</div><input type="range" class="warrior-slider" min="0" max="100" value="80" id="presenceSlider" onchange="updateSliderValue('presence', this.value)"><div class="slider-value" id="presenceValue">80%</div></div>
+				<div class="slider-container"><div class="slider-label">Noise Reduction</div><input type="range" class="warrior-slider" min="0" max="100" value="85" id="noiseSlider" onchange="updateSliderValue('noise', this.value)"><div class="slider-value" id="noiseValue">85%</div></div>
+			</div>
+			<div class="enhancement-actions">
+				<button class="control-btn" onclick="enhanceAudio()">🚀 Enhance Voice</button>
+				<button class="control-btn secondary" onclick="previewEnhancement()">👁️ Preview</button>
+			</div>
+			<div style="background:rgba(0,0,0,0.4);border-radius:20px;padding:22px;margin-top:18px">
+				<h3 style="color:#FFD700;margin-bottom:12px;text-align:center">🧬 SOTA Vocal Cloning Engine</h3>
+				<div class="clone-training-display" id="cloneTrainingDisplay" style="display:none">
+					<div style="text-align:center;margin-bottom:14px">
+						<div style="color:#FFD700;font-weight:600;margin-bottom:8px">Training Voice Model...</div>
+						<div class="progress-bar"><div class="progress-fill" id="cloneProgressFill" style="width:0%"></div></div>
+						<div class="progress-text" id="cloneProgressText">Analyzing vocal characteristics...</div>
+					</div>
+				</div>
+				<div class="voice-model-library">
+					<h4 style="color:#FFD700;margin-bottom:12px;font-size:14px">🎭 Available Voice Models</h4>
+					<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+						<div class="voice-model-card" onclick="selectVoiceModel('original', this)"><div style="font-weight:600">🎤 Original Voice</div><div style="font-size:11px;color:rgba(255,255,255,0.7)">Your natural voice</div></div>
+						<div class="voice-model-card" onclick="selectVoiceModel('enhanced', this)"><div style="font-weight:600">✨ Enhanced Voice</div><div style="font-size:11px;color:rgba(255,255,255,0.7)">Professional quality</div></div>
+						<div class="voice-model-card active" onclick="selectVoiceModel('custom1', this)"><div style="font-weight:600">🧬 Clone Model 1</div><div style="font-size:11px;color:rgba(255,255,255,0.7)">Trained voice clone</div></div>
+						<div class="voice-model-card" onclick="selectVoiceModel('custom2', this)"><div style="font-weight:600">🎯 Clone Model 2</div><div style="font-size:11px;color:rgba(255,255,255,0.7)">Celebrity voice</div></div>
+					</div>
+				</div>
+				<div class="clone-controls" style="background:rgba(0,0,0,0.3);border-radius:10px;padding:14px;margin-bottom:14px">
+					<div class="slider-container"><div class="slider-label">Voice Similarity</div><input type="range" class="warrior-slider" min="0" max="100" value="85" id="similaritySlider" onchange="updateSliderValue('similarity', this.value)"><div class="slider-value" id="similarityValue">85%</div></div>
+					<div class="slider-container"><div class="slider-label">Emotion Transfer</div><input type="range" class="warrior-slider" min="0" max="100" value="70" id="emotionSlider" onchange="updateSliderValue('emotion', this.value)"><div class="slider-value" id="emotionValue">70%</div></div>
+					<div class="slider-container"><div class="slider-label">Pitch Adaptation</div><input type="range" class="warrior-slider" min="0" max="100" value="60" id="pitchSlider" onchange="updateSliderValue('pitch', this.value)"><div class="slider-value" id="pitchValue">60%</div></div>
+				</div>
+				<div class="text-to-speech-section" style="background:rgba(0,0,0,0.3);border-radius:10px;padding:14px">
+					<label class="input-label">🗣️ Text-to-Speech Clone</label>
+					<textarea class="warrior-textarea" id="ttsText" placeholder="Enter text to speak in cloned voice...">Hello, this is a demonstration of the SOTA vocal cloning system. The voice you're hearing is generated using our open-source neural networks.</textarea>
+					<button class="control-btn" style="width:100%;margin-top:10px" onclick="generateClonedSpeech()">🎙️ Generate Cloned Speech</button>
+				</div>
+				<div style="margin-top:14px;padding:12px;background:linear-gradient(135deg,rgba(50,205,50,0.1),rgba(34,139,34,0.1));border:2px solid #32CD32;border-radius:10px">
+					<div style="color:#32CD32;font-weight:600;margin-bottom:6px">🔓 SOTA Open Source Vocal Cloning</div>
+					<div style="font-size:11px;color:rgba(255,255,255,0.8);line-height:1.4">• Neural architecture: MIT License<br>• Training algorithms: Apache 2.0<br>• Voice models: Creative Commons<br>• Commercial use: Unlimited<br>• Source code: GitHub.com/SOTA-Synth/VocalClone</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Right: Results & Export -->
+		<section class="results-panel">
+			<h2 class="panel-title">📊 Results & Export</h2>
+			<div class="comparison-display">
+				<h3 style="color:#FFD700;margin-bottom:12px;font-size:14px">📈 Quality Comparison</h3>
+				<div class="comparison-item"><div class="metric-name">Frequency Response</div><div class="metric-values"><div class="metric-before">Limited</div><div class="metric-after">20Hz-20kHz</div></div></div>
+				<div class="comparison-item"><div class="metric-name">Signal-to-Noise Ratio</div><div class="metric-values"><div class="metric-before">45 dB</div><div class="metric-after">87 dB</div></div></div>
+				<div class="comparison-item"><div class="metric-name">Dynamic Range</div><div class="metric-values"><div class="metric-before">65 dB</div><div class="metric-after">130 dB</div></div></div>
+				<div class="comparison-item"><div class="metric-name">Maximum SPL</div><div class="metric-values"><div class="metric-before">110 dB</div><div class="metric-after">132 dB</div></div></div>
+				<div class="comparison-item"><div class="metric-name">Equivalent Value</div><div class="metric-values"><div class="metric-before">$15</div><div class="metric-after">$3,700</div></div></div>
+			</div>
+			<div class="target-mic-preview">
+				<div class="target-mic-image">🏆</div>
+				<div class="target-mic-name">Neumann U87 Profile</div>
+				<div class="target-mic-price">Professional Studio Standard • $3,700</div>
+				<div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:8px">Your voice now matches the legendary warmth and clarity of this iconic microphone</div>
+			</div>
+			<div class="export-section">
+				<h3 style="color:#FFD700;margin-bottom:12px;font-size:14px">💾 Export Enhanced Audio</h3>
+				<div class="export-formats">
+					<div class="export-format active" onclick="selectExportFormat('wav', this)">WAV (Lossless)</div>
+					<div class="export-format" onclick="selectExportFormat('flac', this)">FLAC (Compressed)</div>
+					<div class="export-format" onclick="selectExportFormat('mp3', this)">MP3 (Standard)</div>
+					<div class="export-format" onclick="selectExportFormat('aiff', this)">AIFF (Pro)</div>
+				</div>
+				<div class="quality-settings">
+					<div class="quality-preset"><span>Sample Rate:</span><span style="color:#FFD700">96 kHz</span></div>
+					<div class="quality-preset"><span>Bit Depth:</span><span style="color:#FFD700">32-bit</span></div>
+					<div class="quality-preset"><span>File Size:</span><span style="color:#FFD700">~25 MB</span></div>
+					<div class="quality-preset"><span>Quality:</span><span style="color:#32CD32">Professional</span></div>
+				</div>
+				<button class="control-btn" style="width:100%;margin-bottom:12px" onclick="exportEnhancedAudio()">📤 Export Enhanced Audio</button>
+				<button class="control-btn secondary" style="width:100%" onclick="saveProfile()">💾 Save Voice Profile</button>
+			</div>
+			<div style="margin-top:18px">
+				<h3 style="color:#FFD700;margin-bottom:12px;font-size:14px">⚡ Quick Actions</h3>
+				<button class="control-btn secondary" style="width:100%;margin-bottom:10px" onclick="sendToDAW()">🎛️ Send to Titan7 DAW</button>
+				<button class="control-btn secondary" style="width:100%;margin-bottom:10px" onclick="goToSynth()">🎹 Open Synthesizer</button>
+				<button class="control-btn secondary" style="width:100%" onclick="shareEnhancement()">📤 Share Enhancement</button>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		// License dialog
+		function showLicense(){
+			alert('🔒 WarriorMic AI Enhancement License\n\nPrice: $199/year\n\n✅ Features:\n• AI Microphone Enhancement\n• Vocal Cloning Technology\n• Real-time Voice Processing\n• Professional Voice Rights\n• Commercial Use License\n\n⚖️ Strict Licensing Required');
+		}
+
+		let isRecording=false;let isEnhancing=false;let selectedTarget='neumann-u87';let selectedExportFormat='wav';
+
+		document.addEventListener('DOMContentLoaded',()=>{generateWaveforms();initializeAudioContext();});
+		function initializeAudioContext(){try{const ac=new(window.AudioContext||window.webkitAudioContext)();console.log('WarriorMic Audio Context initialized');}catch(e){console.log('Web Audio API not supported');}}
+		function generateWaveforms(){generateWaveformBars('originalWaveform',40,60);generateWaveformBars('enhancedWaveform',60,90)}
+		function generateWaveformBars(id,minH,maxH){const c=document.getElementById(id);if(!c)return;c.innerHTML='';for(let i=0;i<80;i++){const b=document.createElement('div');b.className='waveform-bar';b.style.height=(Math.random()*(maxH-minH)+minH)+'%';c.appendChild(b);}}
+
+		// Target selection
+		function selectTarget(targetId, el){selectedTarget=targetId;document.querySelectorAll('.target-mic').forEach(x=>x.classList.remove('active'));if(el) el.classList.add('active');updateTargetPreview(targetId)}
+		function updateTargetPreview(id){const map={
+			'neumann-u87':{name:'Neumann U87 Profile',price:'$3,700',icon:'🏆',description:'Your voice now matches the legendary warmth and clarity of this iconic microphone'},
+			'sony-c37a':{name:'Sony C-37A Profile',price:'$4,500',icon:'🎵',description:'Vintage tube warmth with modern clarity and exceptional vocal presence'},
+			'akg-c12':{name:'AKG C12 Profile',price:'$8,000',icon:'💎',description:'Classic Austrian engineering with silky smooth midrange and pristine highs'},
+			'telefunken-251':{name:'Telefunken ELA M 251 Profile',price:'$15,000',icon:'👑',description:'The holy grail of vocal microphones with unmatched musicality and presence'}
+		};const t=map[id];if(!t)return;document.querySelector('.target-mic-image').textContent=t.icon;document.querySelector('.target-mic-name').textContent=t.name;document.querySelector('.target-mic-price').textContent='Professional Studio Standard • '+t.price;document.querySelector('.target-mic-preview div:last-child').textContent=t.description}
+
+		// Recording
+		function toggleRecording(){const btn=document.getElementById('recordBtn');if(!isRecording){isRecording=true;btn.textContent='⏹️ Stop Recording';btn.classList.add('recording');animateMicQuality();alert('🎤 Recording started! Speak into your microphone to capture audio for enhancement.');}else{isRecording=false;btn.textContent='🎤 Start Recording';btn.classList.remove('recording');alert('⏹️ Recording stopped! Audio captured and ready for WarriorMic enhancement.');}}
+		function testMicrophone(){alert('🔍 Microphone Test Results:\n\n✅ Device: Detected\n✅ Input Level: Good\n✅ Latency: 12ms\n⚠️ Background Noise: Moderate\n📊 Enhancement Potential: High\n\nYour microphone is ready for WarriorMic enhancement!')}
+		function animateMicQuality(){const bars=document.querySelectorAll('.quality-bar');const it=setInterval(()=>{if(!isRecording){clearInterval(it);return}bars.forEach((bar,i)=>{const active=Math.random()>(i*0.1);bar.classList.toggle('active',active)})},200)}
+
+		// Sliders
+		function updateSliderValue(id,val){const el=document.getElementById(id+'Value');if(el) el.textContent=val+'%';updateWaveformPreview()}
+		function updateWaveformPreview(){const clarity=+document.getElementById('claritySlider').value||0;const warmth=+document.getElementById('warmthSlider').value||0;const presence=+document.getElementById('presenceSlider').value||0;const factor=(clarity+warmth+presence)/300;generateWaveformBars('enhancedWaveform',60+factor*20,90+factor*10)}
+
+		// Enhancement process
+		function enhanceAudio(){
+			if(isEnhancing){alert('🎤 Enhancement already in progress!');return}
+			if(!isRecording && !confirm('No audio recorded. Use sample audio for demonstration?')) return;
+			isEnhancing=true;document.getElementById('progressContainer').style.display='block';simulateEnhancement();
+		}
+		function simulateEnhancement(){const pf=document.getElementById('progressFill');const pt=document.getElementById('progressText');const ps=document.getElementById('progressStage');const stages=[{p:25,t:'🔍 Analyzing audio characteristics and identifying enhancement opportunities...',s:'Stage 1 of 4: Audio Analysis',id:1},{p:50,t:'🎯 Applying advanced noise reduction and background elimination...',s:'Stage 2 of 4: Noise Reduction',id:2},{p:75,t:'⚡ Enhancing frequency response to match target microphone profile...',s:'Stage 3 of 4: Frequency Enhancement',id:3},{p:100,t:'✨ Applying professional polish and final quality optimization...',s:'Stage 4 of 4: Professional Polish',id:4}];let i=0;const it=setInterval(()=>{if(i<stages.length){const st=stages[i];pf.style.width=st.p+'%';pt.textContent=st.t;ps.textContent=st.s;updateStageIndicators(st.id);i++;}else{clearInterval(it);onEnhancementComplete();}},2000)}
+		function updateStageIndicators(active){for(let i=1;i<=4;i++){const el=document.getElementById('stage'+i);el.classList.remove('active','completed');if(i<active) el.classList.add('completed'); else if(i===active) el.classList.add('active')}}
+		function onEnhancementComplete(){isEnhancing=false;document.getElementById('progressContainer').style.display='none';document.querySelectorAll('.stage-item').forEach(s=>{s.classList.remove('active');s.classList.add('completed')});generateWaveformBars('enhancedWaveform',80,95);alert('🎉 WarriorMic Enhancement Complete!\n\n✨ Your voice now sounds like it was recorded with a professional $3,700 Neumann U87 microphone!\n\n🎯 Quality improvements:\n• Frequency response: 20Hz-20kHz\n• Signal-to-noise: 87 dB\n• Dynamic range: 130 dB\n• Professional warmth and clarity')}
+		function previewEnhancement(){alert('👁️ Enhancement Preview:\n\n🎤 Original: Basic microphone quality\n✨ Enhanced: Professional studio sound\n\n🎯 Improvements include:\n• Crystal clear highs\n• Warm, rich midrange\n• Controlled low frequencies\n• Eliminated background noise\n• Professional vocal presence\n\nClick "Enhance Voice" to apply these improvements!')}
+
+		// Export
+		function selectExportFormat(fmt, el){selectedExportFormat=fmt;document.querySelectorAll('.export-format').forEach(x=>x.classList.remove('active'));if(el) el.classList.add('active');updateQualitySettings(fmt)}
+		function updateQualitySettings(fmt){const settings={wav:{sampleRate:'96 kHz',bitDepth:'32-bit',size:'~25 MB',quality:'Professional'},flac:{sampleRate:'96 kHz',bitDepth:'24-bit',size:'~12 MB',quality:'High Quality'},mp3:{sampleRate:'48 kHz',bitDepth:'320 kbps',size:'~8 MB',quality:'Standard'},aiff:{sampleRate:'96 kHz',bitDepth:'32-bit',size:'~25 MB',quality:'Professional'}};const s=settings[fmt];if(!s)return;const q=document.querySelectorAll('.quality-preset');q[0].querySelector('span:last-child').textContent=s.sampleRate;q[1].querySelector('span:last-child').textContent=s.bitDepth;q[2].querySelector('span:last-child').textContent=s.size;q[3].querySelector('span:last-child').textContent=s.quality}
+		function exportEnhancedAudio(){if(!isEnhancing && !confirm('No enhanced audio available. Export sample for demonstration?')) return;alert(`📤 Exporting Enhanced Audio...\n\n🎯 Format: ${selectedExportFormat.toUpperCase()}\n📊 Quality: Professional\n🎤 Profile: ${selectedTarget.replace('-', ' ').toUpperCase()}\n\nYour professionally enhanced voice will be ready for download in moments!`)}
+		function saveProfile(){alert('💾 Voice Profile Saved!\n\n🎯 Profile includes:\n• Target microphone settings\n• Personal voice characteristics\n• Enhancement preferences\n• Custom EQ curve\n\nThis profile can be used for future recordings and shared across the SOTA ecosystem!')}
+
+		// Integration
+		function sendToDAW(){window.location.href='daw.html'}
+		function goToSynth(){window.location.href='synthesizer.html'}
+		function shareEnhancement(){alert('📤 Share Enhancement:\n\n🔗 Generate shareable link\n📧 Email enhanced audio\n💾 Export enhancement settings\n🌐 Upload to SOTA cloud\n📱 Share on social media')}
+
+		// Visual idle animation
+		setInterval(()=>{if(!isEnhancing){document.querySelectorAll('#originalWaveform .waveform-bar').forEach(b=>{b.style.height=(Math.random()*40+20)+'%'});document.querySelectorAll('#enhancedWaveform .waveform-bar').forEach(b=>{b.style.height=(Math.random()*30+60)+'%'});}},500)
+
+		// Cloning
+		let selectedVoiceModel='custom1';let isCloning=false;const voiceModels={original:{name:'Original Voice',trained:true},enhanced:{name:'Enhanced Voice',trained:true},custom1:{name:'Clone Model 1',trained:true},custom2:{name:'Clone Model 2',trained:false}};
+		function selectVoiceModel(id, el){selectedVoiceModel=id;document.querySelectorAll('.voice-model-card').forEach(c=>c.classList.remove('active'));if(el) el.classList.add('active');console.log('Selected voice model:',voiceModels[id].name)}
+		function uploadTrainingAudio(){alert('📤 Training Audio Upload\n\n🎯 Requirements:\n• Duration: 5-60 minutes\n• Quality: 44.1kHz+ sample rate\n• Content: Clear speech, varied emotions\n• Format: WAV, FLAC, or high-quality MP3\n\n🧬 SOTA Open Source Algorithm:\n• Real-time feature extraction\n• Neural voice modeling\n• Emotion pattern analysis\n• Prosody preservation\n\n📂 Select your reference audio files...')}
+		function startVoiceCloning(){if(isCloning){alert('🧬 Voice cloning already in progress!');return}const alg=document.getElementById('cloningAlgorithm').value;const mode=document.getElementById('cloneMode').value;isCloning=true;document.getElementById('cloneTrainingDisplay').style.display='block';simulateVoiceCloning(alg,mode)}
+		function simulateVoiceCloning(alg,mode){const pf=document.getElementById('cloneProgressFill');const pt=document.getElementById('cloneProgressText');const stages=[{p:20,t:'🔍 Analyzing vocal characteristics and prosody patterns...'},{p:40,t:'🧠 Training neural voice model with SOTA algorithms...'},{p:60,t:'🎭 Learning emotion patterns and speech dynamics...'},{p:80,t:'🎯 Optimizing voice similarity and quality metrics...'},{p:100,t:'✨ Voice clone training complete! Ready for synthesis.'}];let i=0;const it=setInterval(()=>{if(i<stages.length){const s=stages[i];pf.style.width=s.p+'%';pt.textContent=s.t;i++;}else{clearInterval(it);onVoiceCloningComplete(alg,mode)}},2000)}
+		function onVoiceCloningComplete(alg,mode){isCloning=false;document.getElementById('cloneTrainingDisplay').style.display='none';voiceModels[selectedVoiceModel].trained=true;alert(`🎉 Voice Cloning Complete!\n\n🧬 Algorithm: ${alg.toUpperCase()}\n🎭 Mode: ${mode.replace('-', ' ').toUpperCase()}\n\n✅ Features:\n• Voice similarity: 95.7%\n• Emotion transfer: Enabled\n• Real-time conversion: Ready\n• Text-to-speech: Activated\n\n🔓 Open Source: MIT License\nAll code available on GitHub`) }
+		function testClone(){if(!voiceModels[selectedVoiceModel].trained){alert('❌ Voice model not trained yet. Please train a model first.');return}alert(`🎤 Testing Voice Clone: ${voiceModels[selectedVoiceModel].name}\n\n🎯 Test Results:\n• Voice similarity: 94.8%\n• Quality score: 9.2/10\n• Latency: 45ms\n• Emotion accuracy: 91.3%\n\n🧬 SOTA Algorithm Performance:\n• Neural processing: Optimized\n• Real-time capable: Yes\n• Commercial ready: Yes\n\nVoice clone is ready for production use!`) }
+		function generateClonedSpeech(){const text=(document.getElementById('ttsText').value||'').trim();if(!text){alert('❌ Please enter text to synthesize.');return}if(!voiceModels[selectedVoiceModel].trained){alert('❌ Voice model not trained yet. Please train a model first.');return}const similarity=document.getElementById('similaritySlider').value;const emotion=document.getElementById('emotionSlider').value;const pitch=document.getElementById('pitchSlider').value;alert(`🎙️ Generating Cloned Speech...\n\n📝 Text: "${text.substring(0,50)}..."\n🎭 Voice Model: ${voiceModels[selectedVoiceModel].name}\n\n⚙️ Settings:\n• Voice Similarity: ${similarity}%\n• Emotion Transfer: ${emotion}%\n• Pitch Adaptation: ${pitch}%\n\n🧬 SOTA Open Source Engine:\n• Neural TTS synthesis\n• Real-time voice conversion\n• Emotion preservation\n• Prosody matching\n\n🎵 Speech generated successfully!`) }
+
+		// Dev info
+		console.log('🧬 SOTA Vocal Cloning System Initialized');
+		console.log('🔓 Open Source License: MIT');
+		console.log('📚 Documentation: GitHub.com/SOTA-Synth/VocalClone');
+	</script>
+</body>
+</html>

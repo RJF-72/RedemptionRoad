@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env/
+venv/
+
+/.env
+venv/
+
+# Secrets
+.env
+**/.env
+*.env
+.env.*
+**/.env.*
+*.env.*
+Social Media/.env
+node_modules/
+
+# Models / caches (do not commit large assets)
+models/
+cache/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Outputs / temp
+outputs/
+*.mp4
+*.wav
+*.webm
+*.sota
+*.json

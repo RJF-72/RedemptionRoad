@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOTA Marketing Video Creator - Sub-90 Second Promotional Content Generator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: radial-gradient(1200px 600px at 10% 10%, rgba(0,255,255,0.08), transparent 60%),
+                        radial-gradient(1200px 600px at 90% 0%, rgba(255,0,128,0.08), transparent 60%),
+                        radial-gradient(1000px 600px at 50% 100%, rgba(0,255,200,0.06), transparent 60%),
+                        #0b1220;
+            color: #E6F3FF;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* 🎬 HEADER */
+        .header {
+            background: linear-gradient(135deg, rgba(0,212,255,0.12) 0%, rgba(255,0,128,0.12) 100%);
+            backdrop-filter: blur(18px);
+            padding: 20px;
+            border-bottom: 1px solid rgba(0,212,255,0.25);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .sota-logo {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00E5FF, #15B7FF, #FF1BB3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0,212,255,0.45);
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 10px 15px;
+            background: rgba(0,212,255,0.08);
+            border-radius: 10px;
+            border: 1px solid rgba(0,212,255,0.28);
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00E5FF;
+        }
+        
+        /* 🎛️ MAIN INTERFACE */
+        .main-container {
+            max-width: 1900px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 380px 1fr 320px;
+            gap: 20px;
+            min-height: calc(100vh - 120px);
+        }
+        
+        /* 📝 LEFT PANEL - TEMPLATE SELECTION */
+        .template-panel {
+            background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(255,0,128,0.05) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 20px;
+            padding: 25px;
+            height: fit-content;
+        }
+        
+        .panel-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00E5FF;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0,212,255,0.45);
+        }
+        
+        .duration-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .duration-option {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+        }
+        
+        .duration-option:hover {
+            background: rgba(0,212,255,0.18);
+            border-color: #00E5FF;
+        }
+        
+        .duration-option.active {
+            background: linear-gradient(135deg, #00E5FF, #15B7FF);
+            color: #001019;
+            font-weight: 700;
+        }
+        
+        .template-categories {
+            margin-bottom: 20px;
+        }
+        
+        .category-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .category-tab {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+        
+        .category-tab:hover {
+            background: rgba(0,212,255,0.18);
+            border-color: #00E5FF;
+        }
+        
+        .category-tab.active {
+            background: linear-gradient(135deg, #FF1BB3, #8B5CF6);
+            color: #000814;
+            font-weight: 700;
+        }
+        
+        .template-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .template-item {
+            background: rgba(0,212,255,0.06);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .template-item:hover {
+            background: rgba(0,212,255,0.16);
+            border-color: #00E5FF;
+            transform: translateY(-2px);
+        }
+        
+        .template-item.selected {
+            background: linear-gradient(135deg, rgba(0,212,255,0.25), rgba(255,0,128,0.25));
+            border-color: #15B7FF;
+        }
+        
+        .template-preview {
+            width: 100%;
+            height: 80px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .template-title {
+            font-weight: 600;
+            color: #00E5FF;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .template-description {
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.4;
+        }
+        
+        .brand-upload {
+            background: rgba(0,0,0,0.35);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .upload-zone {
+            border: 1px dashed rgba(0,212,255,0.5);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(0,212,255,0.06);
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: #00E5FF;
+            background: rgba(0,212,255,0.14);
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #00E5FF;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        .sota-input, .sota-select, .sota-textarea {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,212,255,0.28);
+            border-radius: 8px;
+            color: #E6F3FF;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        
+        .sota-input:focus, .sota-select:focus, .sota-textarea:focus {
+            outline: none;
+            border-color: #00E5FF;
+            box-shadow: 0 0 18px rgba(0,212,255,0.28);
+        }
+        
+        .sota-textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        
+        /* 🎬 CENTER PANEL - VIDEO EDITOR */
+        .video-editor-panel {
+            background: linear-gradient(135deg, rgba(0,212,255,0.04) 0%, rgba(255,0,128,0.04) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 20px;
+            padding: 25px;
+        }
+        
+        .editor-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(1,8,20,0.5);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+        
+        .toolbar-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .toolbar-btn {
+            background: rgba(0,212,255,0.14);
+            border: 1px solid rgba(0,212,255,0.45);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #00E5FF;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .toolbar-btn:hover {
+            background: #00E5FF;
+            color: #001019;
+        }
+        
+        .toolbar-btn.active {
+            background: linear-gradient(135deg, #FF1BB3, #8B5CF6);
+            color: #000814;
+            font-weight: 700;
+        }
+        
+        .video-preview-large {
+            background: rgba(1,8,20,0.55);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            min-height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(0,212,255,0.22);
+            position: relative;
+        }
+        
+        .preview-placeholder {
+            text-align: center;
+            color: rgba(0,212,255,0.7);
+        }
+        
+        .preview-video {
+            width: 100%;
+            max-height: 450px;
+            border-radius: 12px;
+        }
+        
+        .video-overlay {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(1,8,20,0.85);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+            color: #00E5FF;
+        }
+        
+        .timeline-editor {
+            background: rgba(1,8,20,0.5);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .timeline-ruler {
+            background: rgba(0,212,255,0.1);
+            border-radius: 8px;
+            height: 30px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ruler-marks {
+            display: flex;
+            height: 100%;
+            align-items: end;
+        }
+        
+        .ruler-mark {
+            width: 2px;
+            background: rgba(0,212,255,0.6);
+            margin-right: 8px;
+        }
+        
+        .timeline-tracks {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .timeline-track {
+            background: rgba(0,212,255,0.08);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .track-label {
+            width: 80px;
+            font-size: 11px;
+            color: #00E5FF;
+            font-weight: 600;
+        }
+        
+        .track-content {
+            flex: 1;
+            height: 40px;
+            background: rgba(0,212,255,0.16);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .track-element {
+            height: 100%;
+            background: linear-gradient(90deg, #00E5FF, #15B7FF);
+            border-radius: 4px;
+            margin: 2px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 10px;
+            color: #001019;
+            font-weight: 600;
+        }
+        
+        .generation-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .sota-button {
+            background: linear-gradient(135deg, #00E5FF 0%, #15B7FF 100%);
+            color: #001019;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .sota-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,212,255,0.35);
+        }
+        
+        .sota-button.secondary {
+            background: transparent;
+            color: #00E5FF;
+            border: 1px solid #00E5FF;
+        }
+        
+        .sota-button.secondary:hover {
+            background: #00E5FF;
+            color: #001019;
+        }
+        
+        /* 🎨 RIGHT PANEL - CUSTOMIZATION */
+        .customization-panel {
+            background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(255,0,128,0.05) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 20px;
+            padding: 25px;
+            height: fit-content;
+        }
+        
+        .customization-section {
+            background: rgba(1,8,20,0.5);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            color: #00E5FF;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .color-option:hover, .color-option.active {
+            border-color: #00E5FF;
+            transform: scale(1.1);
+        }
+        
+        .font-options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .font-option {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+        
+        .font-option:hover {
+            background: rgba(0,212,255,0.18);
+            border-color: #00E5FF;
+        }
+        
+        .font-option.active {
+            background: linear-gradient(135deg, #FF1BB3, #8B5CF6);
+            color: #000814;
+            font-weight: 700;
+        }
+        
+        .animation-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .animation-option {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+        }
+        
+        .animation-option:hover {
+            background: rgba(0,212,255,0.18);
+            border-color: #00E5FF;
+        }
+        
+        .animation-option.active {
+            background: linear-gradient(135deg, #FF1BB3, #8B5CF6);
+            color: #000814;
+            font-weight: 700;
+        }
+        
+        .export-settings {
+            background: rgba(1,8,20,0.5);
+            border-radius: 12px;
+            padding: 18px;
+        }
+        
+        .export-format {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,212,255,0.12);
+            font-size: 12px;
+        }
+        
+        .export-format:last-child {
+            border-bottom: none;
+        }
+        
+        .social-presets {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .social-preset {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+        }
+        
+        .social-preset:hover {
+            background: rgba(0,212,255,0.18);
+            border-color: #00E5FF;
+        }
+        
+        .social-preset.active {
+            background: linear-gradient(135deg, #FF1BB3, #8B5CF6);
+            color: #000814;
+            font-weight: 700;
+        }
+        
+        /* 🚀 PROGRESS INDICATOR */
+        .progress-container {
+            background: rgba(1,8,20,0.5);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress-bar {
+            background: rgba(0,212,255,0.16);
+            border-radius: 10px;
+            height: 18px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #00E5FF, #15B7FF);
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            color: #00E5FF;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        
+        /* 🎭 ANIMATIONS */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes glow {
+            0% { box-shadow: 0 0 15px rgba(0,212,255,0.25); }
+            50% { box-shadow: 0 0 28px rgba(255,0,128,0.35); }
+            100% { box-shadow: 0 0 15px rgba(0,212,255,0.25); }
+        }
+        
+        .generating {
+            animation: glow 2s ease-in-out infinite;
+        }
+        
+        /* 📱 RESPONSIVE DESIGN */
+        @media (max-width: 1600px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .duration-selector {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .generation-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 🎬 HEADER -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <a href="index.html" style="text-decoration:none; color:inherit;">
+                    <div class="sota-logo">📢 SOTA Marketing Video Creator</div>
+                </a>
+                <div style="color: rgba(0,212,255,0.8); font-size: 14px;">
+                    Sub-90 Second Promotional Content Generator
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <div class="stat-value">12,847</div>
+                    <div>Marketing Videos</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">94.8%</div>
+                    <div>Conversion Rate</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">2.3M</div>
+                    <div>Total Exports</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 🎛️ MAIN INTERFACE -->
+    <main class="main-container">
+        <!-- 📝 LEFT PANEL - TEMPLATE SELECTION -->
+        <section class="template-panel">
+            <h2 class="panel-title">📋 Templates & Content</h2>
+            
+            <!-- Duration Selector -->
+            <div class="duration-selector">
+                <div class="duration-option active" onclick="selectDuration(15)">15s</div>
+                <div class="duration-option" onclick="selectDuration(30)">30s</div>
+                <div class="duration-option" onclick="selectDuration(60)">60s</div>
+                <div class="duration-option" onclick="selectDuration(90)">90s</div>
+                <div class="duration-option" onclick="selectDuration('custom')">Custom</div>
+            </div>
+            
+            <!-- Template Categories -->
+            <div class="template-categories">
+                <div class="category-tabs">
+                    <div class="category-tab active" onclick="selectCategory('product')">📱 Product</div>
+                    <div class="category-tab" onclick="selectCategory('brand')">🏢 Brand</div>
+                    <div class="category-tab" onclick="selectCategory('service')">⚙️ Service</div>
+                    <div class="category-tab" onclick="selectCategory('social')">📱 Social</div>
+                </div>
+                
+                <!-- Template Grid -->
+                <div class="template-grid" id="templateGrid">
+                    <!-- Templates will be populated here -->
+                </div>
+            </div>
+            
+            <!-- Brand Upload Section -->
+            <div class="brand-upload">
+                <h3 style="color: #10B981; margin-bottom: 15px; font-size: 14px;">🎨 Brand Assets</h3>
+                
+                <div class="upload-zone" onclick="uploadLogo()">
+                    <div style="font-size: 24px; margin-bottom: 8px;">📸</div>
+                    <div style="font-size: 12px;">Upload Logo/Images</div>
+                    <input type="file" id="logoUpload" accept="image/*" multiple style="display: none;">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Company Name</label>
+                    <input type="text" class="sota-input" id="companyName" placeholder="Your Company">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Tagline/Message</label>
+                    <textarea class="sota-textarea" id="mainMessage" placeholder="Your main marketing message..."></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Call-to-Action</label>
+                    <input type="text" class="sota-input" id="callToAction" placeholder="Visit our website!">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Target Audience</label>
+                    <select class="sota-select" id="targetAudience">
+                        <option value="general">General Audience</option>
+                        <option value="b2b">Business (B2B)</option>
+                        <option value="b2c">Consumers (B2C)</option>
+                        <option value="youth">Young Adults</option>
+                        <option value="professional">Professionals</option>
+                        <option value="seniors">Seniors</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- 🎬 CENTER PANEL - VIDEO EDITOR -->
+        <section class="video-editor-panel">
+            <h2 class="panel-title">🎬 Video Editor & Preview</h2>
+            
+            <!-- Editor Toolbar -->
+            <div class="editor-toolbar">
+                <div class="toolbar-section">
+                    <button class="toolbar-btn active" onclick="selectTool('select')">🖱️ Select</button>
+                    <button class="toolbar-btn" onclick="selectTool('text')">📝 Text</button>
+                    <button class="toolbar-btn" onclick="selectTool('shape')">🔷 Shape</button>
+                    <button class="toolbar-btn" onclick="selectTool('animation')">✨ Animation</button>
+                </div>
+                <div class="toolbar-section">
+                    <button class="toolbar-btn" onclick="undoAction()">↶ Undo</button>
+                    <button class="toolbar-btn" onclick="redoAction()">↷ Redo</button>
+                    <button class="toolbar-btn" onclick="resetVideo()">🔄 Reset</button>
+                </div>
+                <div class="toolbar-section">
+                    <span style="color: #10B981; font-size: 12px;">Duration: <strong id="videoDuration">30s</strong></span>
+                </div>
+            </div>
+            
+            <!-- Video Preview Area -->
+            <div class="video-preview-large" id="videoPreview">
+                <div class="preview-placeholder">
+                    <div style="font-size: 64px; margin-bottom: 20px;">📢</div>
+                    <h3>Your Marketing Video Preview</h3>
+                    <p>Select a template and customize to see your video</p>
+                </div>
+                <div class="video-overlay" id="videoInfo" style="display: none;">
+                    <div>📐 1920x1080</div>
+                    <div>⏱️ 30 seconds</div>
+                    <div>🎯 Product Demo</div>
+                </div>
+            </div>
+            
+            <!-- Progress Indicator -->
+            <div class="progress-container" id="progressContainer">
+                <h3 style="color: #10B981; margin-bottom: 12px;">🚀 Creating Your Marketing Video...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                </div>
+                <div class="progress-text" id="progressText">Analyzing brand requirements...</div>
+            </div>
+            
+            <!-- Timeline Editor -->
+            <div class="timeline-editor">
+                <div class="timeline-header">
+                    <h3 style="color: #10B981; font-size: 14px;">⏱️ Timeline Editor</h3>
+                    <div class="toolbar-section">
+                        <button class="toolbar-btn" onclick="addScene()">➕ Scene</button>
+                        <button class="toolbar-btn" onclick="addText()">📝 Text</button>
+                        <button class="toolbar-btn" onclick="addTransition()">🔄 Transition</button>
+                    </div>
+                </div>
+                
+                <div class="timeline-ruler">
+                    <div class="ruler-marks">
+                        <div class="ruler-mark" style="height: 20px;"></div>
+                        <div class="ruler-mark" style="height: 15px;"></div>
+                        <div class="ruler-mark" style="height: 10px;"></div>
+                        <div class="ruler-mark" style="height: 15px;"></div>
+                        <div class="ruler-mark" style="height: 20px;"></div>
+                        <div class="ruler-mark" style="height: 15px;"></div>
+                        <div class="ruler-mark" style="height: 10px;"></div>
+                        <div class="ruler-mark" style="height: 15px;"></div>
+                        <div class="ruler-mark" style="height: 20px;"></div>
+                    </div>
+                </div>
+                
+                <div class="timeline-tracks">
+                    <div class="timeline-track">
+                        <div class="track-label">Video</div>
+                        <div class="track-content">
+                            <div class="track-element" style="width: 60%;">Scene 1 - Product Intro</div>
+                        </div>
+                    </div>
+                    <div class="timeline-track">
+                        <div class="track-label">Text</div>
+                        <div class="track-content">
+                            <div class="track-element" style="width: 40%; margin-left: 20%;">Main Message</div>
+                        </div>
+                    </div>
+                    <div class="timeline-track">
+                        <div class="track-label">Audio</div>
+                        <div class="track-content">
+                            <div class="track-element" style="width: 90%;">Background Music</div>
+                        </div>
+                    </div>
+                    <div class="timeline-track">
+                        <div class="track-label">Effects</div>
+                        <div class="track-content">
+                            <div class="track-element" style="width: 30%; margin-left: 60%;">Call-to-Action</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Generation Controls -->
+            <div class="generation-controls">
+                <button class="sota-button" onclick="generateVideo()">
+                    🚀 Generate
+                </button>
+                <button class="sota-button secondary" onclick="previewVideo()">
+                    👁️ Preview
+                </button>
+                <button class="sota-button secondary" onclick="quickExport()">
+                    ⚡ Quick Export
+                </button>
+            </div>
+        </section>
+
+        <!-- 🎨 RIGHT PANEL - CUSTOMIZATION -->
+        <section class="customization-panel">
+            <h2 class="panel-title">🎨 Customization & Export</h2>
+            
+            <!-- Brand Colors -->
+            <div class="customization-section">
+                <div class="section-title">🎨 Brand Colors</div>
+                <div class="color-palette">
+                    <div class="color-option active" style="background: linear-gradient(45deg, #3B82F6, #1D4ED8);" onclick="selectColor('blue')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #EF4444, #DC2626);" onclick="selectColor('red')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #10B981, #059669);" onclick="selectColor('green')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #F59E0B, #D97706);" onclick="selectColor('orange')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #8B5CF6, #7C3AED);" onclick="selectColor('purple')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #EC4899, #DB2777);" onclick="selectColor('pink')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #374151, #1F2937);" onclick="selectColor('gray')"></div>
+                    <div class="color-option" style="background: linear-gradient(45deg, #FFD700, #FFA500);" onclick="selectColor('gold')"></div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Custom Color</label>
+                    <input type="color" class="sota-input" value="#22C55E" onchange="setCustomColor(this.value)">
+                </div>
+            </div>
+            
+            <!-- Typography -->
+            <div class="customization-section">
+                <div class="section-title">📝 Typography</div>
+                <div class="font-options">
+                    <div class="font-option active" onclick="selectFont('modern')" style="font-family: 'Arial', sans-serif;">Modern Sans</div>
+                    <div class="font-option" onclick="selectFont('bold')" style="font-family: 'Arial Black', sans-serif; font-weight: 900;">Bold Impact</div>
+                    <div class="font-option" onclick="selectFont('elegant')" style="font-family: 'Georgia', serif;">Elegant Serif</div>
+                    <div class="font-option" onclick="selectFont('tech')" style="font-family: 'JetBrains Mono', monospace;">Tech Mono</div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Text Size</label>
+                    <input type="range" class="sota-input" min="12" max="72" value="24" onchange="adjustTextSize(this.value)">
+                </div>
+            </div>
+            
+            <!-- Animations -->
+            <div class="customization-section">
+                <div class="section-title">✨ Animations</div>
+                <div class="animation-options">
+                    <div class="animation-option active" onclick="selectAnimation('fade')">Fade In</div>
+                    <div class="animation-option" onclick="selectAnimation('slide')">Slide</div>
+                    <div class="animation-option" onclick="selectAnimation('zoom')">Zoom</div>
+                    <div class="animation-option" onclick="selectAnimation('bounce')">Bounce</div>
+                    <div class="animation-option" onclick="selectAnimation('rotate')">Rotate</div>
+                    <div class="animation-option" onclick="selectAnimation('typewriter')">Typewriter</div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Animation Speed</label>
+                    <select class="sota-select">
+                        <option value="slow">Slow</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="fast">Fast</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Social Media Presets -->
+            <div class="customization-section">
+                <div class="section-title">📱 Social Media Presets</div>
+                <div class="social-presets">
+                    <div class="social-preset active" onclick="selectSocialPreset('instagram')">📷 Instagram</div>
+                    <div class="social-preset" onclick="selectSocialPreset('facebook')">📘 Facebook</div>
+                    <div class="social-preset" onclick="selectSocialPreset('youtube')">📺 YouTube</div>
+                    <div class="social-preset" onclick="selectSocialPreset('tiktok')">🎵 TikTok</div>
+                    <div class="social-preset" onclick="selectSocialPreset('linkedin')">💼 LinkedIn</div>
+                    <div class="social-preset" onclick="selectSocialPreset('twitter')">🐦 Twitter</div>
+                </div>
+            </div>
+            
+            <!-- Export Settings -->
+            <div class="export-settings">
+                <div class="section-title">💾 Export Settings</div>
+                
+                <div class="export-format">
+                    <span>🎬 Format:</span>
+                    <select class="sota-select" style="width: 100px; font-size: 11px;">
+                        <option value="mp4">MP4</option>
+                        <option value="mov">MOV</option>
+                        <option value="gif">GIF</option>
+                        <option value="webm">WebM</option>
+                    </select>
+                </div>
+                
+                <div class="export-format">
+                    <span>📺 Resolution:</span>
+                    <select class="sota-select" style="width: 100px; font-size: 11px;">
+                        <option value="1080p">1080p</option>
+                        <option value="720p">720p</option>
+                        <option value="480p">480p</option>
+                        <option value="4k">4K</option>
+                    </select>
+                </div>
+                
+                <div class="export-format">
+                    <span>🎯 Optimization:</span>
+                    <span style="color: #10B981;">Social Media</span>
+                </div>
+                
+                <div class="export-format">
+                    <span>📊 File Size:</span>
+                    <span style="color: #10B981;">~15 MB</span>
+                </div>
+                
+                <button class="sota-button" style="width: 100%; margin-top: 15px;" onclick="exportVideo()">
+                    📤 Export Video
+                </button>
+                
+                <button class="sota-button secondary" style="width: 100%; margin-top: 10px;" onclick="saveTemplate()">
+                    💾 Save Template
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 📢 SOTA Marketing Video Creator JavaScript
+        let selectedDuration = 30;
+        let selectedCategory = 'product';
+        let selectedTemplate = null;
+        let isGenerating = false;
+        let currentTool = 'select';
+
+        // 🎛️ INITIALIZATION
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTemplates();
+        });
+
+        // 🕐 DURATION SELECTION
+        function selectDuration(duration) {
+            selectedDuration = duration;
+            
+            // Update UI
+            document.querySelectorAll('.duration-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update timeline and templates
+            document.getElementById('videoDuration').textContent = duration === 'custom' ? 'Custom' : duration + 's';
+            loadTemplates();
+        }
+
+        // 📂 CATEGORY SELECTION
+        function selectCategory(category) {
+            selectedCategory = category;
+            
+            // Update UI
+            document.querySelectorAll('.category-tab').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            loadTemplates();
+        }
+
+        // 📋 TEMPLATE LOADING
+        function loadTemplates() {
+            const templateGrid = document.getElementById('templateGrid');
+            
+            const templates = {
+                product: [
+                    {
+                        id: 'product-showcase',
+                        title: 'Product Showcase',
+                        description: 'Clean product reveal with feature highlights',
+                        icon: '📱',
+                        duration: [15, 30, 60]
+                    },
+                    {
+                        id: 'unboxing-experience',
+                        title: 'Unboxing Experience',
+                        description: 'Exciting unboxing sequence with reactions',
+                        icon: '📦',
+                        duration: [30, 60, 90]
+                    },
+                    {
+                        id: 'before-after',
+                        title: 'Before & After',
+                        description: 'Problem-solution comparison format',
+                        icon: '🔄',
+                        duration: [15, 30, 45]
+                    },
+                    {
+                        id: 'feature-demo',
+                        title: 'Feature Demo',
+                        description: 'Step-by-step feature demonstration',
+                        icon: '🎯',
+                        duration: [30, 60, 90]
+                    }
+                ],
+                brand: [
+                    {
+                        id: 'brand-story',
+                        title: 'Brand Story',
+                        description: 'Emotional brand narrative and values',
+                        icon: '🏢',
+                        duration: [30, 60, 90]
+                    },
+                    {
+                        id: 'team-intro',
+                        title: 'Team Introduction',
+                        description: 'Meet the team behind your brand',
+                        icon: '👥',
+                        duration: [15, 30, 60]
+                    },
+                    {
+                        id: 'company-culture',
+                        title: 'Company Culture',
+                        description: 'Showcase your workplace culture',
+                        icon: '🎨',
+                        duration: [30, 60, 90]
+                    },
+                    {
+                        id: 'mission-vision',
+                        title: 'Mission & Vision',
+                        description: 'Purpose-driven brand messaging',
+                        icon: '🎯',
+                        duration: [15, 30, 45]
+                    }
+                ],
+                service: [
+                    {
+                        id: 'service-overview',
+                        title: 'Service Overview',
+                        description: 'Comprehensive service introduction',
+                        icon: '⚙️',
+                        duration: [30, 60, 90]
+                    },
+                    {
+                        id: 'process-walkthrough',
+                        title: 'Process Walkthrough',
+                        description: 'Step-by-step service process',
+                        icon: '📋',
+                        duration: [45, 60, 90]
+                    },
+                    {
+                        id: 'client-testimonial',
+                        title: 'Client Testimonial',
+                        description: 'Customer success stories and reviews',
+                        icon: '💬',
+                        duration: [15, 30, 60]
+                    },
+                    {
+                        id: 'consultation-cta',
+                        title: 'Consultation CTA',
+                        description: 'Strong call-to-action for consultations',
+                        icon: '📞',
+                        duration: [15, 30, 45]
+                    }
+                ],
+                social: [
+                    {
+                        id: 'trending-hook',
+                        title: 'Trending Hook',
+                        description: 'Viral-style content with strong hook',
+                        icon: '🔥',
+                        duration: [15, 30]
+                    },
+                    {
+                        id: 'behind-scenes',
+                        title: 'Behind the Scenes',
+                        description: 'Authentic behind-the-scenes content',
+                        icon: '🎬',
+                        duration: [15, 30, 60]
+                    },
+                    {
+                        id: 'quick-tips',
+                        title: 'Quick Tips',
+                        description: 'Fast-paced educational content',
+                        icon: '💡',
+                        duration: [15, 30]
+                    },
+                    {
+                        id: 'user-generated',
+                        title: 'User Generated',
+                        description: 'Community-driven content showcase',
+                        icon: '👥',
+                        duration: [15, 30, 60]
+                    }
+                ]
+            };
+            
+            templateGrid.innerHTML = '';
+            
+            const categoryTemplates = templates[selectedCategory] || [];
+            
+            categoryTemplates.forEach(template => {
+                // Check if template supports selected duration
+                const supportsDuration = selectedDuration === 'custom' || template.duration.includes(selectedDuration);
+                
+                if (supportsDuration) {
+                    const templateElement = document.createElement('div');
+                    templateElement.className = 'template-item';
+                    templateElement.onclick = () => selectTemplate(template);
+                    
+                    templateElement.innerHTML = `
+                        <div class="template-preview">${template.icon}</div>
+                        <div class="template-title">${template.title}</div>
+                        <div class="template-description">${template.description}</div>
+                    `;
+                    
+                    templateGrid.appendChild(templateElement);
+                }
+            });
+        }
+
+        // 📋 TEMPLATE SELECTION
+        function selectTemplate(template) {
+            selectedTemplate = template;
+            
+            // Update UI
+            document.querySelectorAll('.template-item').forEach(el => el.classList.remove('selected'));
+            event.target.closest('.template-item').classList.add('selected');
+            
+            // Update preview
+            updateVideoPreview(template);
+        }
+
+        function updateVideoPreview(template) {
+            const videoPreview = document.getElementById('videoPreview');
+            const videoInfo = document.getElementById('videoInfo');
+            
+            videoPreview.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 72px; margin-bottom: 20px;">${template.icon}</div>
+                    <h3 style="color: #10B981; margin-bottom: 10px;">${template.title}</h3>
+                    <p style="margin-bottom: 20px;">${template.description}</p>
+                    <div style="background: rgba(34,197,94,0.1); border-radius: 10px; padding: 15px; margin-top: 20px;">
+                        <div style="font-size: 14px; color: #10B981;">
+                            📐 Optimized for ${selectedDuration}s<br>
+                            🎯 ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Category<br>
+                            ✨ AI-Generated Content
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            videoInfo.style.display = 'block';
+        }
+
+        // 🛠️ TOOL SELECTION
+        function selectTool(tool) {
+            currentTool = tool;
+            
+            // Update UI
+            document.querySelectorAll('.toolbar-btn').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // 📸 ASSET UPLOAD
+        function uploadLogo() {
+            document.getElementById('logoUpload').click();
+        }
+
+        // Handle file upload
+        document.getElementById('logoUpload').addEventListener('change', function(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                alert(`📸 ${files.length} image(s) uploaded successfully!\n\nYour brand assets will be integrated into the video template.`);
+            }
+        });
+
+        // 🎨 CUSTOMIZATION FUNCTIONS
+        function selectColor(color) {
+            // Update UI
+            document.querySelectorAll('.color-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Apply color to video preview
+            applyBrandColor(color);
+        }
+
+        function setCustomColor(color) {
+            applyBrandColor(color);
+        }
+
+        function applyBrandColor(color) {
+            // In a real implementation, this would update the video preview
+            console.log(`Applied brand color: ${color}`);
+        }
+
+        function selectFont(font) {
+            // Update UI
+            document.querySelectorAll('.font-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function adjustTextSize(size) {
+            // Update text size in video preview
+            console.log(`Text size adjusted to: ${size}px`);
+        }
+
+        function selectAnimation(animation) {
+            // Update UI
+            document.querySelectorAll('.animation-option').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function selectSocialPreset(platform) {
+            // Update UI
+            document.querySelectorAll('.social-preset').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Apply platform-specific settings
+            const presets = {
+                instagram: { ratio: '1:1', duration: 30, resolution: '1080x1080' },
+                facebook: { ratio: '16:9', duration: 60, resolution: '1920x1080' },
+                youtube: { ratio: '16:9', duration: 90, resolution: '1920x1080' },
+                tiktok: { ratio: '9:16', duration: 30, resolution: '1080x1920' },
+                linkedin: { ratio: '16:9', duration: 45, resolution: '1920x1080' },
+                twitter: { ratio: '16:9', duration: 30, resolution: '1280x720' }
+            };
+            
+            const preset = presets[platform];
+            if (preset) {
+                alert(`📱 ${platform.toUpperCase()} preset applied!\n\n📐 ${preset.ratio} aspect ratio\n⏱️ ${preset.duration}s duration\n📺 ${preset.resolution} resolution`);
+            }
+        }
+
+        // 🚀 VIDEO GENERATION (real backend)
+        const BACKEND_URL = window.SOTA_BACKEND_URL || 'http://localhost:8000';
+
+        async function generateVideo() {
+            if (!selectedTemplate) {
+                alert('⚠️ Please select a template first!');
+                return;
+            }
+            if (isGenerating) {
+                alert('🎬 Video generation already in progress!');
+                return;
+            }
+
+            isGenerating = true;
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Initializing marketing video generation...';
+
+            try {
+                const fd = new FormData();
+                // Optional brand media (first uploaded image if any)
+                const logoInput = document.getElementById('logoUpload');
+                if (logoInput && logoInput.files && logoInput.files[0]) {
+                    fd.append('image', logoInput.files[0]);
+                }
+                // Map marketing fields to backend-friendly payload
+                fd.append('mode', 'marketing');
+                fd.append('category', selectedCategory);
+                fd.append('duration', String(selectedDuration));
+                fd.append('template_id', selectedTemplate.id);
+                fd.append('company', document.getElementById('companyName').value || '');
+                fd.append('message', document.getElementById('mainMessage').value || '');
+                fd.append('cta', document.getElementById('callToAction').value || '');
+                fd.append('audience', document.getElementById('targetAudience').value || 'general');
+
+                const startResp = await fetch(`${BACKEND_URL}/api/generate/start`, {
+                    method: 'POST',
+                    body: fd
+                });
+                if (!startResp.ok) throw new Error('Failed to start generation');
+                const { job_id } = await startResp.json();
+
+                // Poll status
+                const poll = async () => {
+                    const res = await fetch(`${BACKEND_URL}/api/generate/status?job_id=${job_id}`);
+                    if (!res.ok) throw new Error('Status check failed');
+                    const data = await res.json();
+                    const pct = Math.max(0, Math.min(100, data.progress || 0));
+                    progressFill.style.width = pct + '%';
+                    progressText.textContent = `Status: ${data.status || 'running'}... ${pct}%`;
+                    if (data.status === 'done') {
+                        onBackendGenerationComplete(job_id);
+                    } else if (data.status === 'error') {
+                        throw new Error(data.error || 'Generation error');
+                    } else {
+                        setTimeout(poll, 1500);
+                    }
+                };
+                setTimeout(poll, 1200);
+            } catch (err) {
+                isGenerating = false;
+                progressContainer.style.display = 'none';
+                alert('❌ Marketing video generation failed: ' + (err && err.message ? err.message : err));
+            }
+        }
+
+        async function onBackendGenerationComplete(jobId) {
+            isGenerating = false;
+            document.getElementById('progressContainer').style.display = 'none';
+
+            const videoPreview = document.getElementById('videoPreview');
+            const res = await fetch(`${BACKEND_URL}/api/generate/result?job_id=${jobId}`);
+            if (!res.ok) {
+                alert('❌ Failed to retrieve generated video');
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            videoPreview.innerHTML = '';
+            const vid = document.createElement('video');
+            vid.className = 'preview-video';
+            vid.controls = true;
+            vid.src = url;
+            videoPreview.appendChild(vid);
+
+            alert('🎉 Your marketing video has been generated successfully!');
+        }
+
+        // 👁️ PREVIEW & EXPORT
+        function previewVideo() {
+            if (!selectedTemplate) {
+                alert('⚠️ Please select a template first!');
+                return;
+            }
+            
+            alert('👁️ Video preview would open in fullscreen mode with playback controls.');
+        }
+
+        function quickExport() {
+            if (!selectedTemplate) {
+                alert('⚠️ Please generate a video first!');
+                return;
+            }
+            
+            alert('⚡ Quick export options:\n\n📱 Instagram (1:1) - Ready\n📘 Facebook (16:9) - Ready\n📺 YouTube (16:9) - Ready\n🎵 TikTok (9:16) - Ready');
+        }
+
+        function exportVideo() {
+            alert('📤 Export started!\n\nFormats available:\n• MP4 (1080p) - 15 MB\n• MOV (4K) - 45 MB\n• GIF (720p) - 8 MB\n• WebM (1080p) - 12 MB\n\nEstimated completion: 2 minutes');
+        }
+
+        // ✏️ EDITING FUNCTIONS
+        function undoAction() {
+            alert('↶ Last action undone');
+        }
+
+        function redoAction() {
+            alert('↷ Action redone');
+        }
+
+        function resetVideo() {
+            if (confirm('🔄 Reset video to template defaults?')) {
+                alert('Video reset to original template');
+            }
+        }
+
+        function addScene() {
+            alert('➕ Scene options:\n\n🎬 Product Shot\n📝 Text Slide\n🎨 Logo Animation\n📊 Statistics\n📞 Call-to-Action');
+        }
+
+        function addText() {
+            alert('📝 Text overlay added!\n\nCustomize:\n• Font style\n• Color\n• Position\n• Animation\n• Duration');
+        }
+
+        function addTransition() {
+            alert('🔄 Transition options:\n\n✨ Fade\n📐 Slide\n🌀 Spin\n💥 Zoom\n🎭 Dissolve');
+        }
+
+        function editVideo() {
+            alert('✏️ Advanced editor would open with:\n\n🎬 Scene-by-scene editing\n📝 Text customization\n🎨 Color adjustments\n✨ Animation timeline\n🎵 Audio controls');
+        }
+
+        // 💾 TEMPLATE MANAGEMENT
+        function saveTemplate() {
+            alert('💾 Template saved!\n\nYour customized template has been saved for future use.');
+        }
+
+        // 🚀 STARTUP ANIMATION
+        window.addEventListener('load', () => {
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 1s ease';
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+    </script>
+</body>
+</html>
