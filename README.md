@@ -10,6 +10,8 @@
 
 ## 🚀 Quick Start
 
+Looking for hands-on steps? See: [How to Use the Suite](./HOW_TO_USE.md)
+
 ### System Requirements
 - **OS**: Windows 10/11, macOS 10.15+, Linux Ubuntu 18.04+
 - **RAM**: 16GB minimum, 32GB recommended
