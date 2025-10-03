@@ -18,18 +18,19 @@
     <!-- React via CDN -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script type="module">
-      import AdvancedComposer from './smart-synth.js';
-      const root = ReactDOM.createRoot(document.getElementById('root'));
+    <!-- Babel Standalone for JSX/ES features in-browser (dev-friendly) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Load the SmartSynth component with JSX via Babel -->
+    <script type="text/babel" data-presets="env,react" src="./smart-synth.js"></script>
+    <script>
       // Mount component and also expose a quick-export helper
-      const app = React.createElement(AdvancedComposer);
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      const app = React.createElement(window.AdvancedComposer);
       root.render(app);
 
       // Attach a helper to window so the host page can trigger exports for quick tests
       window.exportPartsMIDI = (parts = ['bass','drums','melody']) => {
-        // Try to locate the default exported function on the component module if available
         try {
-          // If AdvancedComposer exposes exportMultiMIDI as a global (dev-only), call it.
           if (window.exportMultiMIDI) return window.exportMultiMIDI(parts);
         } catch (e) { console.warn('exportPartsMIDI helper failed', e); }
         alert('Export helper: open composer and use Export Parts MIDI from the UI');

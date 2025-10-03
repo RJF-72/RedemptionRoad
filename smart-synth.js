@@ -1780,4 +1780,4 @@ const AdvancedComposer = () => {
   );
 };
 
-export default AdvancedComposer;
+try { if (typeof window !== 'undefined') window.AdvancedComposer = AdvancedComposer; } catch {}
