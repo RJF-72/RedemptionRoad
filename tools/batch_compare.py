@@ -50,7 +50,7 @@ if __name__ == '__main__':
     ap.add_argument('--ref', required=True)
     ap.add_argument('--cand', required=True)
     ap.add_argument('--mode', choices=['filename','index','cross'], default='filename')
-    ap.add_argument('--profile', choices=['melodic','general'], default='melodic')
+    ap.add_argument('--profile', choices=['melodic','percussive','general'], default='melodic')
     ap.add_argument('--out', default='authenticity_results.csv')
     args = ap.parse_args()
 

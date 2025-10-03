@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Advanced AI Composer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    </style>
+  </head>
+  <body class="bg-gray-950">
+    <div id="root"></div>
+
+    <!-- React via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script type="module">
+      import AdvancedComposer from './smart-synth.js';
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      // Mount component and also expose a quick-export helper
+      const app = React.createElement(AdvancedComposer);
+      root.render(app);
+
+      // Attach a helper to window so the host page can trigger exports for quick tests
+      window.exportPartsMIDI = (parts = ['bass','drums','melody']) => {
+        // Try to locate the default exported function on the component module if available
+        try {
+          // If AdvancedComposer exposes exportMultiMIDI as a global (dev-only), call it.
+          if (window.exportMultiMIDI) return window.exportMultiMIDI(parts);
+        } catch (e) { console.warn('exportPartsMIDI helper failed', e); }
+        alert('Export helper: open composer and use Export Parts MIDI from the UI');
+      };
+    </script>
+    <div style="position:fixed; right:16px; bottom:16px;">
+      <button onclick="exportPartsMIDI(['bass','drums','melody'])" style="background:#7c3aed;color:white;padding:10px 14px;border-radius:8px;border:none;box-shadow:0 6px 18px rgba(124,58,237,0.25);">Export Parts MIDI</button>
+    </div>
+  </body>
+</html>

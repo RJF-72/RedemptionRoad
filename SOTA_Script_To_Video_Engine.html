@@ -759,6 +759,82 @@ Use clear scene markers, timing, and detailed descriptions for best AI interpret
                     <p>Enter your script and watch AI transform it into cinematic video</p>
                 </div>
             </div>
+            <!-- Transport controls -->
+            <div id="transportControls" style="margin-top: 8px; display: grid; grid-template-columns: 120px 1fr 120px 220px; gap: 10px; align-items: center;">
+                <div style="display:flex; gap:6px;">
+                    <button class="sota-button" id="btnPlayPause" onclick="togglePreviewPlay()">▶ Play</button>
+                    <button class="sota-button secondary" onclick="stopPreview()">⏹ Stop</button>
+                </div>
+                <input type="range" id="previewSeek" min="0" max="100" value="0" step="0.1" />
+                <div id="timecode" style="font-variant-numeric: tabular-nums; text-align:center;">00:00.0 / 00:00.0</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label class="input-label" style="margin:0;">Loop</label>
+                    <input type="checkbox" id="loopEnable" />
+                    <label class="input-label" style="margin:0;">In</label>
+                    <input type="number" id="loopIn" min="0" value="0" style="width:70px;" />
+                    <label class="input-label" style="margin:0;">Out</label>
+                    <input type="number" id="loopOut" min="0" value="0" style="width:70px;" />
+                </div>
+            </div>
+            <!-- Real generation controls -->
+            <div id="scriptVideoControls" style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; align-items: center;">
+                <div>
+                    <label class="input-label">Optional Audio</label>
+                    <input id="scriptAudioInput" type="file" accept="audio/*" />
+                </div>
+                <div>
+                    <label class="input-label">FPS</label>
+                    <select id="scriptFps" class="sota-select">
+                        <option value="24">24</option>
+                        <option value="30" selected>30</option>
+                        <option value="60">60</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="input-label">Palette</label>
+                    <select id="scriptPalette" class="sota-select">
+                        <option value="vibrant" selected>Vibrant</option>
+                        <option value="warm">Warm</option>
+                        <option value="cool">Cool</option>
+                        <option value="neon">Neon</option>
+                        <option value="mono">Mono</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap: 8px; align-items: end;">
+                    <button class="sota-button" onclick="generateFromScript()">Build & Preview</button>
+                    <button class="sota-button secondary" onclick="exportVideo()">Export WebM</button>
+                </div>
+            </div>
+            <div id="lyricsControls" style="margin-top: 10px; display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; align-items: center;">
+                <div>
+                    <label class="input-label">Import Lyrics (LRC/SRT/TXT)</label>
+                    <input id="lyricsFile" type="file" accept=".lrc,.srt,.txt" />
+                </div>
+                <div>
+                    <label class="input-label">Show Lyrics</label>
+                    <select id="lyricsEnabled" class="sota-select">
+                        <option value="on" selected>On</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="input-label">Font Size</label>
+                    <select id="lyricsSize" class="sota-select">
+                        <option value="28">28</option>
+                        <option value="32">32</option>
+                        <option value="36" selected>36</option>
+                        <option value="42">42</option>
+                        <option value="48">48</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="input-label">Style</label>
+                    <select id="lyricsStyle" class="sota-select">
+                        <option value="karaoke" selected>Karaoke</option>
+                        <option value="plain">Plain</option>
+                    </select>
+                </div>
+            </div>
             
             <!-- Progress Indicator -->
             <div class="progress-container" id="progressContainer">
@@ -941,6 +1017,80 @@ Use clear scene markers, timing, and detailed descriptions for best AI interpret
         let currentGenerationStyle = 'realistic';
         let isGenerating = false;
         let generatedScenes = [];
+        // Real script-to-video state
+        let scriptScenes = [];
+    let scriptPlayback = { playing:false, startTime:0, pauseOffset:0, fps:30, palette:'vibrant', canvas:null, ctx:null, raf:0 };
+    let scriptAudio = { ctx:null, buf:null, src:null };
+    let recorder = { mr:null, chunks:[], recording:false, downloadUrl:'' };
+    // Lyrics state
+    let lyrics = []; // {start:sec, end:sec, text}
+    let lyricsSettings = { enabled:true, size:36, style:'karaoke' };
+
+        const PALETTES = {
+            vibrant:[0,45,200,280], warm:[10,25,35,5], cool:[180,200,220,160], neon:[140,190,300,330], mono:[210,210,210,210]
+        };
+
+        function hashHue(text){ let h=0; for(let i=0;i<text.length;i++){ h=(h*31 + text.charCodeAt(i))>>>0; } return h%360; }
+        function parseTimeSpan(s){ const m=s && s.match(/(\d+):(\d+)-(\d+):(\d+)/); if(!m) return null; const a=+m[1]*60+ +m[2]; const b=+m[3]*60+ +m[4]; return {start:a,end:b,dur:Math.max(1,b-a)}; }
+        function parseScriptToScenes(txt){ const lines=txt.split(/\r?\n/); const out=[]; let cur=null; for(const line of lines){ const t=line.trim(); if(!t) continue; const m=t.match(/^\[SCENE[^\]]*-(.*?)\]/i); if(m){ const ts=parseTimeSpan(m[1]); cur={title:t.replace(/^\[|\]$/g,''), desc:'', ...(ts||{start:null,end:null,dur:null})}; out.push(cur); continue; }
+                if(!cur){ cur={title:'Scene',desc:'',start:null,end:null,dur:null}; out.push(cur); }
+                cur.desc += (cur.desc?"\n":"") + t; }
+            // assign durations if missing
+            const unknown = out.filter(s=>!s.dur);
+            if(unknown.length){ const def=8; let acc=0; out.forEach(s=>{ if(!s.dur){ s.dur=def; s.start=acc; s.end=acc+def; acc+=def; }}); }
+            return out; }
+
+        function ensureCanvas(){ const vp=document.getElementById('videoPreview'); let cvs=vp.querySelector('canvas'); if(!cvs){ vp.innerHTML=''; cvs=document.createElement('canvas'); cvs.width=1280; cvs.height=720; cvs.style.width='100%'; cvs.style.border='1px solid rgba(255,255,255,0.15)'; cvs.style.borderRadius='10px'; vp.appendChild(cvs); } return cvs; }
+        function pickPaletteHue(scene, palette){ const pal=PALETTES[palette]||PALETTES.vibrant; const base=pal[Math.floor((hashHue(scene.title+scene.desc))%pal.length)]; return (base + (hashHue(scene.desc)%40))%360; }
+        function drawSceneFrame(ctx,w,h,scene,tIn,dur,hue){
+            const zoom = 1 + 0.03*Math.sin((tIn/dur)*Math.PI*2);
+            ctx.save(); ctx.translate(w/2,h/2); ctx.scale(zoom,zoom); ctx.translate(-w/2,-h/2);
+            const grad=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.max(w,h)*.7);
+            grad.addColorStop(0,`hsl(${hue},70%,60%)`); grad.addColorStop(1,`hsl(${(hue+30)%360},70%,15%)`);
+            ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+            // particles
+            ctx.globalCompositeOperation='lighter'; const n=40; for(let i=0;i<n;i++){ const ang=i/n*Math.PI*2 + tIn*.6; const r=120 + (i%10)*12 + 40*Math.sin(tIn*.8+i); const x=w/2+Math.cos(ang)*r; const y=h/2+Math.sin(ang)*r; const sz=4 + (i%7);
+                ctx.fillStyle=`hsla(${(hue+i*7)%360},80%,70%,0.25)`; ctx.beginPath(); ctx.arc(x,y,sz,0,Math.PI*2); ctx.fill(); }
+            ctx.globalCompositeOperation='source-over';
+            // text cards
+            ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(w*0.08,h*0.12,w*0.84,h*0.22); ctx.fillRect(w*0.08,h*0.72,w*0.84,h*0.18);
+            ctx.strokeStyle=`hsla(${hue},100%,75%,0.6)`; ctx.lineWidth=3; ctx.strokeRect(w*0.08,h*0.12,w*0.84,h*0.22);
+            ctx.font='700 40px Inter, Arial'; ctx.fillStyle='white'; ctx.textAlign='left'; ctx.fillText(scene.title.replace(/\[|\]/g,''), w*0.1, h*0.2);
+            ctx.font='400 22px Inter, Arial'; const descLines=(scene.desc||'').split(/\n/).slice(0,4); let y=h*0.24; for(const L of descLines){ ctx.fillText(L, w*0.1, y); y+=28; }
+            ctx.font='600 20px Inter, Arial'; ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.textAlign='right';
+            const st = scene.start!=null?scene.start:0; const en = scene.end!=null?scene.end:st+(scene.dur||8);
+            ctx.fillText(`${formatTime(st)} - ${formatTime(en)}`, w*0.9, h*0.82);
+            ctx.restore();
+            // vignette
+            const vg=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*.5,w/2,h/2,Math.max(w,h)*.8); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.35)'); ctx.fillStyle=vg; ctx.fillRect(0,0,w,h);
+        }
+        function formatTime(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+
+        function startPreview(){ if(scriptPlayback.playing) cancelAnimationFrame(scriptPlayback.raf); const cvs=ensureCanvas(); const ctx=cvs.getContext('2d'); scriptPlayback.canvas=cvs; scriptPlayback.ctx=ctx; scriptPlayback.playing=true; scriptPlayback.startTime=performance.now() - (scriptPlayback.pauseOffset||0)*1000; const fps=scriptPlayback.fps; const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0); const totalFrames=Math.floor(total*fps);
+            const hues=scriptScenes.map(s=>pickPaletteHue(s,scriptPlayback.palette));
+            const step=()=>{ if(!scriptPlayback.playing) return; let t=(performance.now()-scriptPlayback.startTime)/1000; const loopOn = document.getElementById('loopEnable')?.checked; const loopIn = parseFloat(document.getElementById('loopIn')?.value||'0'); let loopOut = parseFloat(document.getElementById('loopOut')?.value||'0'); if(loopOut<=0) loopOut=total; if(loopOn){ if(t<loopIn) t=loopIn; if(t>=loopOut){ scriptPlayback.startTime = performance.now() - loopIn*1000; t=loopIn; } }
+                const frame=Math.floor(t*fps); if(frame>=totalFrames){ scriptPlayback.playing=false; scriptPlayback.pauseOffset=0; updateSeekAndTimecode(total,total); return; }
+                let acc=0, idx=0; for(let i=0;i<scriptScenes.length;i++){ const d=scriptScenes[i].dur||8; if(t<acc+d){ idx=i; break; } acc+=d; }
+                const sc=scriptScenes[idx]; const localT=t - scriptScenes.slice(0,idx).reduce((a,s)=>a+(s.dur||8),0);
+                ctx.clearRect(0,0,cvs.width,cvs.height); drawSceneFrame(ctx,cvs.width,cvs.height,sc,localT,sc.dur||8,hues[idx]);
+                // update seek + timecode
+                updateSeekAndTimecode(t,total);
+                drawLyricsOverlay(ctx, cvs.width, cvs.height, t);
+                scriptPlayback.raf=requestAnimationFrame(step);
+            };
+            scriptPlayback.raf=requestAnimationFrame(step);
+        }
+        function updateSeekAndTimecode(t,total){ const seek=document.getElementById('previewSeek'); if(seek){ seek.value = String((t/total)*100); } const tc=document.getElementById('timecode'); if(tc){ tc.textContent = `${formatTime(t)} / ${formatTime(total)}`; } }
+        function togglePreviewPlay(){ const btn=document.getElementById('btnPlayPause'); const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0)||0; if(!scriptPlayback.playing){ startPreview(); if(btn) btn.textContent='⏸ Pause'; } else { scriptPlayback.playing=false; cancelAnimationFrame(scriptPlayback.raf); const t=(performance.now()-scriptPlayback.startTime)/1000; scriptPlayback.pauseOffset=t; if(btn) btn.textContent='▶ Play'; updateSeekAndTimecode(t,total); } }
+        function stopPreview(){ scriptPlayback.playing=false; cancelAnimationFrame(scriptPlayback.raf); scriptPlayback.pauseOffset=0; const btn=document.getElementById('btnPlayPause'); if(btn) btn.textContent='▶ Play'; const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0)||0; updateSeekAndTimecode(0,total); const cvs=ensureCanvas(); const ctx=cvs.getContext('2d'); ctx.clearRect(0,0,cvs.width,cvs.height); }
+        document.addEventListener('input', (e)=>{ if(e.target && e.target.id==='previewSeek'){ const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0)||1; const pct=parseFloat(e.target.value||'0')/100; const t=pct*total; scriptPlayback.pauseOffset=t; if(scriptPlayback.playing){ scriptPlayback.startTime = performance.now() - t*1000; } else { // render a single frame at t
+                const cvs=ensureCanvas(); const ctx=cvs.getContext('2d'); let acc=0, idx=0; for(let i=0;i<scriptScenes.length;i++){ const d=scriptScenes[i].dur||8; if(t<acc+d){ idx=i; break; } acc+=d; } const sc=scriptScenes[idx]; const localT=t - scriptScenes.slice(0,idx).reduce((a,s)=>a+(s.dur||8),0); const hues=scriptScenes.map(s=>pickPaletteHue(s,scriptPlayback.palette)); ctx.clearRect(0,0,cvs.width,cvs.height); drawSceneFrame(ctx,cvs.width,cvs.height,sc,localT,sc.dur||8,hues[idx]); drawLyricsOverlay(ctx, cvs.width, cvs.height, t); }
+                updateSeekAndTimecode(t,total);} });
+        function formatTime(sec){ if(!isFinite(sec)) return '00:00.0'; const s=Math.max(0,sec); const m=Math.floor(s/60); const r=s-m*60; return `${String(m).padStart(2,'0')}:${r.toFixed(1).padStart(4,'0')}`; }
+
+        async function startAudioIfAny(){ const inp=document.getElementById('scriptAudioInput'); if(!inp || !inp.files || !inp.files[0]) return; if(!scriptAudio.ctx) scriptAudio.ctx=new (window.AudioContext||window.webkitAudioContext)(); const ab=await inp.files[0].arrayBuffer(); scriptAudio.buf=await scriptAudio.ctx.decodeAudioData(ab.slice(0)); }
+
+        function updateStage(progress, text, stage){ const fill=document.getElementById('progressFill'); const lbl=document.getElementById('progressText'); if(fill) fill.style.width = `${progress}%`; if(lbl) lbl.textContent=text; if(stage) updateStageIndicators(stage); }
 
         // 🎛️ INITIALIZATION
         document.addEventListener('DOMContentLoaded', () => {
@@ -1234,86 +1384,21 @@ DIALOGUE: "Next time, I'm hiring a professional"`
         // 🚀 VIDEO GENERATION
         function generateFromScript() {
             const scriptContent = document.getElementById('scriptContent').value.trim();
-            
-            if (!scriptContent) {
-                alert('⚠️ Please enter a script first!');
-                return;
-            }
-            
-            if (isGenerating) {
-                alert('🎬 Video generation already in progress!');
-                return;
-            }
-            
-            isGenerating = true;
-            
-            // Show progress
+            if (!scriptContent) { alert('⚠️ Please enter a script first!'); return; }
+            const fpsSel=document.getElementById('scriptFps');
+            const palSel=document.getElementById('scriptPalette');
+            scriptPlayback.fps = fpsSel ? parseInt(fpsSel.value||'30') : 30;
+            scriptPlayback.palette = palSel ? palSel.value : 'vibrant';
+            scriptScenes = parseScriptToScenes(scriptContent);
+            generateSceneListFromScript();
             document.getElementById('progressContainer').style.display = 'block';
-            
-            // Start generation simulation
-            simulateScriptGeneration();
+            updateStage(20,'🧩 Parsed script into scenes',1);
+            startPreview();
+            updateStage(100,'✅ Preview ready. Use Export to record.',5);
+            isGenerating = false;
         }
 
-        function simulateScriptGeneration() {
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
-            
-            const steps = [
-                { 
-                    progress: 15, 
-                    text: '🔍 Analyzing script structure and narrative flow...',
-                    stage: 1
-                },
-                { 
-                    progress: 30, 
-                    text: '🎬 Breaking down scenes and identifying key moments...',
-                    stage: 2
-                },
-                { 
-                    progress: 45, 
-                    text: '🎨 Generating visual concepts for each scene...',
-                    stage: 3
-                },
-                { 
-                    progress: 60, 
-                    text: '🎭 Creating character models and expressions...',
-                    stage: 3
-                },
-                { 
-                    progress: 75, 
-                    text: '🎵 Synchronizing audio and dialogue timing...',
-                    stage: 4
-                },
-                { 
-                    progress: 90, 
-                    text: '⚡ Rendering high-quality video sequences...',
-                    stage: 5
-                },
-                { 
-                    progress: 100, 
-                    text: '✅ Script-to-video generation complete!',
-                    stage: 5
-                }
-            ];
-            
-            let currentStep = 0;
-            
-            const interval = setInterval(() => {
-                if (currentStep < steps.length) {
-                    const step = steps[currentStep];
-                    progressFill.style.width = step.progress + '%';
-                    progressText.textContent = step.text;
-                    
-                    // Update stage indicators
-                    updateStageIndicators(step.stage);
-                    
-                    currentStep++;
-                } else {
-                    clearInterval(interval);
-                    onScriptGenerationComplete();
-                }
-            }, 2500);
-        }
+        function simulateScriptGeneration() { /* removed: using real preview/export */ }
 
         function updateStageIndicators(activeStage) {
             for (let i = 1; i <= 5; i++) {
@@ -1328,116 +1413,162 @@ DIALOGUE: "Next time, I'm hiring a professional"`
             }
         }
 
-        function onScriptGenerationComplete() {
-            isGenerating = false;
-            
-            // Hide progress
-            document.getElementById('progressContainer').style.display = 'none';
-            
-            // Show completed video preview
-            const videoPreview = document.getElementById('videoPreview');
-            videoPreview.innerHTML = `
-                <video class="preview-video" controls>
-                    <source src="#" type="video/mp4">
-                    <div style="text-align: center; padding: 40px;">
-                        <h3 style="color: #BA55D3;">🎬 Your Script Video is Ready!</h3>
-                        <p>AI-generated ${currentGenerationStyle} style video</p>
-                        <p>Style: ${currentGenerationStyle} | Type: ${currentScriptType}</p>
-                        <p>Click to preview your generated video</p>
-                    </div>
-                </video>
-            `;
-            
-            // Generate scene list
-            generateSceneListFromScript();
-            
-            alert('🎉 Your script has been transformed into a video successfully!');
-        }
+        function onScriptGenerationComplete() { /* replaced by real pipeline */ }
 
         function generateSceneListFromScript() {
             const sceneList = document.getElementById('sceneList');
-            
-            // Generate scenes based on current script type
-            const scenes = [
-                { time: '0:00-0:10', description: 'Opening scene with character introduction', type: 'Establishing' },
-                { time: '0:10-0:25', description: 'Conflict or challenge presentation', type: 'Rising Action' },
-                { time: '0:25-0:40', description: 'Character response and development', type: 'Development' },
-                { time: '0:40-0:55', description: 'Climactic moment or resolution', type: 'Climax' },
-                { time: '0:55-1:10', description: 'Conclusion and call-to-action', type: 'Resolution' }
-            ];
-            
             sceneList.innerHTML = '';
-            
-            scenes.forEach((scene, index) => {
+            scriptScenes.forEach((scene, index) => {
+                const st = scene.start!=null?scene.start:index*8;
+                const en = scene.end!=null?scene.end:st+(scene.dur||8);
+                const time=`${formatTime(st)}-${formatTime(en)}`;
                 const sceneItem = document.createElement('div');
                 sceneItem.className = 'scene-item';
                 sceneItem.innerHTML = `
                     <div class="scene-preview">🎬</div>
                     <div class="scene-info">
-                        <div class="scene-time">${scene.time}</div>
-                        <div class="scene-description">${scene.description}</div>
-                        <div style="font-size: 10px; color: #BA55D3; margin-top: 2px;">${scene.type}</div>
+                        <div class="scene-time">${time}</div>
+                        <div class="scene-description">${(scene.desc||'').split('\\n')[0]||scene.title}</div>
+                        <div style="font-size: 10px; color: #BA55D3; margin-top: 2px;">Length: ${Math.round(scene.dur||8)}s</div>
                     </div>
                     <div class="scene-controls">
                         <button class="scene-btn" onclick="editScene(${index})">Edit</button>
                         <button class="scene-btn" onclick="regenerateScene(${index})">Regen</button>
                         <button class="scene-btn" onclick="deleteScene(${index})">Del</button>
-                    </div>
-                `;
+                    </div>`;
                 sceneList.appendChild(sceneItem);
             });
         }
 
         // 🎬 SCENE MANAGEMENT
         function editScene(sceneIndex) {
-            alert(`🎬 Editing scene ${sceneIndex + 1}. Advanced scene editor would open here with:\n\n• Visual style adjustments\n• Character positioning\n• Camera angle modifications\n• Dialogue timing\n• Effect overlays`);
+            const s=scriptScenes[sceneIndex]; if(!s) return; const newDesc=prompt('Edit scene description:', s.desc||''); if(newDesc===null) return; const durPrompt = prompt('Edit duration (seconds):', String(Math.round(s.dur||8)));
+            const newDur=parseFloat(durPrompt);
+            if(!isNaN(newDur) && newDur>0){ s.dur=newDur; let acc=0; scriptScenes.forEach(sc=>{ sc.start=acc; sc.end=acc+(sc.dur||8); acc=sc.end; }); }
+            s.desc=newDesc; generateSceneListFromScript(); startPreview();
         }
 
         function regenerateScene(sceneIndex) {
-            if (confirm(`🔄 Regenerate scene ${sceneIndex + 1} with different AI interpretation?`)) {
-                alert(`🎨 Scene ${sceneIndex + 1} is being regenerated with alternative visual approach...`);
-            }
+            const s=scriptScenes[sceneIndex]; if(!s) return; s.title = s.title + ' '; generateSceneListFromScript(); startPreview();
         }
 
         function deleteScene(sceneIndex) {
-            if (confirm(`🗑️ Delete scene ${sceneIndex + 1}? This cannot be undone.`)) {
-                alert(`🗑️ Scene ${sceneIndex + 1} deleted. Timeline adjusted automatically.`);
-                generateSceneListFromScript();
-            }
+            scriptScenes.splice(sceneIndex,1); let acc=0; scriptScenes.forEach(sc=>{ sc.start=acc; sc.end=acc+(sc.dur||8); acc=sc.end; }); generateSceneListFromScript(); startPreview();
         }
 
         function addScene() {
-            alert('➕ Add Scene dialog would open here:\n\n• Scene position in timeline\n• Duration settings\n• Visual style selection\n• Character/location options');
+            const desc=prompt('New scene description:'); if(!desc) return; const dur=parseFloat(prompt('Duration (seconds):','8'))||8; const start=scriptScenes.reduce((a,s)=>a+(s.dur||8),0); scriptScenes.push({title:'[SCENE]',desc,start,end:start+dur,dur}); generateSceneListFromScript(); startPreview();
         }
 
         function reorderScenes() {
-            alert('🔄 Scene reorder interface would activate:\n\n• Drag and drop timeline\n• Automatic timing adjustment\n• Transition management\n• Continuity checking');
+            const a=parseInt(prompt('Move from index (1-based):','1'))-1; const b=parseInt(prompt('Move to index (1-based):','1'))-1; if(isNaN(a)||isNaN(b)||a<0||b<0||a>=scriptScenes.length||b>=scriptScenes.length) return; const [itm]=scriptScenes.splice(a,1); scriptScenes.splice(b,0,itm); let acc=0; scriptScenes.forEach(sc=>{ sc.start=acc; sc.end=acc+(sc.dur||8); acc=sc.end; }); generateSceneListFromScript(); startPreview();
         }
 
         function adjustTiming() {
-            alert('⏱️ Timing adjustment panel would open:\n\n• Individual scene duration\n• Transition lengths\n• Pause and pacing\n• Audio synchronization');
+            let acc=0; for(const sc of scriptScenes){ const v=parseFloat(prompt(`Duration for scene starting at ${formatTime(acc)} (sec):`, String(Math.round(sc.dur||8)))); if(!isNaN(v)&&v>0) sc.dur=v; acc+=sc.dur||8; } acc=0; scriptScenes.forEach(sc=>{ sc.start=acc; sc.end=acc+(sc.dur||8); acc=sc.end; }); generateSceneListFromScript(); startPreview();
         }
 
         // 👁️ PREVIEW & EXPORT
         function previewScript() {
             const scriptContent = document.getElementById('scriptContent').value.trim();
-            
-            if (!scriptContent) {
-                alert('⚠️ Please enter a script first!');
-                return;
-            }
-            
-            alert('👁️ Script preview would show:\n\n• Estimated generation time\n• Scene breakdown analysis\n• Character count\n• Visual complexity assessment\n• Suggested improvements');
+            if (!scriptContent) { alert('⚠️ Please enter a script first!'); return; }
+            const fpsSel=document.getElementById('scriptFps');
+            const palSel=document.getElementById('scriptPalette');
+            scriptPlayback.fps = fpsSel ? parseInt(fpsSel.value||'30') : 30;
+            scriptPlayback.palette = palSel ? palSel.value : 'vibrant';
+            scriptScenes = parseScriptToScenes(scriptContent); generateSceneListFromScript(); startPreview();
         }
 
-        function exportVideo() {
-            if (isGenerating) {
-                alert('⚠️ Please wait for video generation to complete!');
-                return;
+        async function exportVideo() {
+            if(!scriptScenes.length){ alert('⚠️ Generate a preview first.'); return; }
+            await startAudioIfAny();
+            const cvs=ensureCanvas(); const stream=cvs.captureStream(scriptPlayback.fps||30);
+            if(scriptAudio.ctx && scriptAudio.buf){ const dest=scriptAudio.ctx.createMediaStreamDestination();
+                if(scriptAudio.src){ try{scriptAudio.src.stop();}catch(_){} }
+                const src=scriptAudio.ctx.createBufferSource(); src.buffer=scriptAudio.buf; src.connect(scriptAudio.ctx.destination); src.connect(dest); scriptAudio.src=src; src.start();
+                dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
             }
-            
-            alert('💾 Video export options:\n\n📹 MP4 (1080p) - 245 MB\n🎬 MOV (4K) - 680 MB\n📱 Mobile optimized - 120 MB\n🌐 Web streaming - 85 MB');
+            const mr=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'}); recorder.mr=mr; recorder.chunks=[]; recorder.recording=true; 
+            mr.ondataavailable=e=>{ if(e.data && e.data.size>0) recorder.chunks.push(e.data); };
+            mr.onstop=()=>{ const blob=new Blob(recorder.chunks,{type:'video/webm'}); const url=URL.createObjectURL(blob); recorder.downloadUrl=url; recorder.recording=false; const vp=document.getElementById('videoPreview'); const link=document.createElement('a'); link.href=url; link.download='script-video.webm'; link.textContent='Download Video'; link.className='sota-button'; link.style.display='inline-block'; link.style.marginTop='10px'; vp.appendChild(link); updateStage(100,'✅ Export complete',5); };
+            mr.start();
+            const fps=scriptPlayback.fps||30; const ctx=cvs.getContext('2d'); const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0); const totalFrames=Math.floor(total*fps);
+            const hues=scriptScenes.map(s=>pickPaletteHue(s,scriptPlayback.palette));
+            let frame=0; updateStage(0,'🎥 Exporting…',5);
+            const loop=()=>{ if(!recorder.recording) return; const t=frame/fps; if(frame>=totalFrames){ mr.stop(); return; }
+                let acc=0, idx=0; for(let i=0;i<scriptScenes.length;i++){ const d=scriptScenes[i].dur||8; if(t<acc+d){ idx=i; break; } acc+=d; }
+                const sc=scriptScenes[idx]; const localT=t - scriptScenes.slice(0,idx).reduce((a,s)=>a+(s.dur||8),0);
+                ctx.clearRect(0,0,cvs.width,cvs.height); drawSceneFrame(ctx,cvs.width,cvs.height,sc,localT,sc.dur||8,hues[idx]);
+                drawLyricsOverlay(ctx, cvs.width, cvs.height, t);
+                frame++; if(frame%Math.max(1,Math.floor(totalFrames/100))===0) updateStage(Math.floor((frame/totalFrames)*100),'🎥 Exporting…',5);
+                setTimeout(()=>requestAnimationFrame(loop), 0);
+            };
+            requestAnimationFrame(loop);
         }
+
+        // ===== Lyrics parsing and overlay =====
+        document.addEventListener('change', (e)=>{
+            if(e.target && e.target.id === 'lyricsFile' && e.target.files && e.target.files[0]){
+                const file=e.target.files[0];
+                const ext=(file.name.split('.').pop()||'').toLowerCase();
+                const reader=new FileReader();
+                reader.onload=()=>{ const text=String(reader.result||'');
+                    if(ext==='lrc') lyrics = parseLRC(text);
+                    else if(ext==='srt') lyrics = parseSRT(text);
+                    else lyrics = parsePlainLyrics(text);
+                    normalizeLyricDurations();
+                    startPreview();
+                };
+                reader.readAsText(file);
+            }
+            if(e.target && e.target.id==='lyricsEnabled'){ lyricsSettings.enabled = (typeof e.target.checked === 'boolean') ? !!e.target.checked : (e.target.value==='on' || e.target.value==='true' || e.target.value==='1'); }
+            if(e.target && e.target.id==='lyricsSize'){ lyricsSettings.size = parseInt(e.target.value||'36'); }
+            if(e.target && e.target.id==='lyricsStyle'){ lyricsSettings.style = e.target.value||'karaoke'; }
+        });
+
+        function normalizeLyricDurations(){
+            if(!lyrics || !lyrics.length) return; for(let i=0;i<lyrics.length;i++){ const cur=lyrics[i]; const nxt=lyrics[i+1]; if(cur.end==null){ cur.end = nxt? Math.max(cur.start+0.8, Math.min(nxt.start-0.1, cur.start+5)) : cur.start+3; } }
+        }
+
+        function parseTimeStr(str){
+            const s=str.trim();
+            let m = s.match(/^(\d+):(\d{2})(?:[\.:](\d{1,3}))?$/); // mm:ss.xx
+            if(m){ const mm=+m[1], ss=+m[2], ms=m[3]? +m[3] : 0; return mm*60+ss+(ms>=100?ms/1000:ms/100); }
+            m = s.match(/^(\d+):(\d{2}):(\d{2})(?:[\.,](\d{1,3}))?$/); // hh:mm:ss,ms
+            if(m){ const hh=+m[1], mm=+m[2], ss=+m[3], ms=m[4]? +m[4] : 0; return hh*3600+mm*60+ss+ms/1000; }
+            return NaN;
+        }
+
+        function parseLRC(text){
+            const out=[]; const lines=text.split(/\r?\n/);
+            for(const line of lines){ const tags=[...line.matchAll(/\[(\d{1,2}:\d{2}(?:[\.:]\d{1,3})?)\]/g)]; if(!tags.length) continue; const content=line.replace(/\[[^\]]+\]/g,'').trim(); for(const t of tags){ const ts=parseTimeStr(t[1]); if(!isNaN(ts)) out.push({start:ts, end:null, text:content}); } }
+            out.sort((a,b)=>a.start-b.start); return out;
+        }
+        function parseSRT(text){
+            const out=[]; const blocks=text.split(/\r?\n\r?\n/); const timeRe=new RegExp("(\\d+:\\d{2}:\\d{2}[\\.,]\\d{1,3})\\s*-->\\s*(\\d+:\\d{2}:\\d{2}[\\.,]\\d{1,3})");
+            for(const b of blocks){ const lines=b.split(/\r?\n/).filter(Boolean); if(lines.length<2) continue; const m=lines[1].match(timeRe); if(!m) continue; const st=parseTimeStr(m[1]); const en=parseTimeStr(m[2]); const txt=lines.slice(2).join(' ').trim(); if(!isNaN(st)&&!isNaN(en)&&txt) out.push({start:st,end:en,text:txt}); }
+            out.sort((a,b)=>a.start-b.start); return out;
+        }
+        function parsePlainLyrics(text){
+            const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean); if(!lines.length) return [];
+            const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0)||lines.length*3; const per=total/lines.length; const out=[]; for(let i=0;i<lines.length;i++){ const st=i*per; out.push({start:st, end:st+Math.max(2, per*0.9), text:lines[i]}); }
+            return out;
+        }
+
+        function drawLyricsOverlay(ctx,w,h,t){ if(!lyricsSettings.enabled || !lyrics || !lyrics.length) return; const cur=lyrics.find((l,idx)=> t>=l.start && t<(l.end ?? (lyrics[idx+1]?lyrics[idx+1].start:l.start+3)) ); if(!cur) return; const start=cur.start; const end=cur.end ?? (start+3); const prog=Math.max(0, Math.min(1, (t-start)/Math.max(0.25,end-start)));
+            const size=lyricsSettings.size||36; ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
+            const y=h*0.85; ctx.font=`700 ${size}px Inter, Arial`;
+            // backdrop box
+            ctx.fillStyle='rgba(0,0,0,0.35)'; const pad=16; const met=ctx.measureText(cur.text); const bw=met.width+pad*2; const bh=size*1.6; ctx.fillRect((w-bw)/2, y-bh/2, bw, bh);
+            // base text and karaoke overlay
+            if(lyricsSettings.style==='plain'){
+                ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fillText(cur.text, w/2, y);
+            } else {
+                ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.fillText(cur.text, w/2, y);
+                const tx = w/2 - met.width/2; const clipW = met.width*prog; ctx.save(); ctx.beginPath(); ctx.rect(tx, y-size*0.55, clipW, size*1.1); ctx.clip(); ctx.fillStyle='hsl(48,100%,60%)'; ctx.fillText(cur.text, w/2, y); ctx.restore();
+                ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.strokeText(cur.text, w/2, y);
+            }
+            ctx.restore(); }
 
         // 💾 PROJECT MANAGEMENT
         function saveScript() {
@@ -1468,5 +1599,6 @@ DIALOGUE: "Next time, I'm hiring a professional"`
             }, 100);
         });
     </script>
+        <script src="./composer-shim.js"></script>
 </body>
 </html>

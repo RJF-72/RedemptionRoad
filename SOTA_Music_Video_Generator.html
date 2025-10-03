@@ -1017,7 +1017,6 @@ Be specific about timing, scenes, and visual elements."
 
     <script>
         // 🎵 SOTA Music Video Generator JavaScript
-        let currentMode = 'auto';
         let currentStyle = 'cinematic';
         let currentPalette = 'warm';
         let currentAudio = null;
@@ -1254,6 +1253,16 @@ Be specific about timing, scenes, and visual elements."
             vid.controls = true;
             vid.src = url;
             videoPreview.appendChild(vid);
+            // Add a download button
+            const dl = document.createElement('a');
+            dl.href = url;
+            const ext = (blob && blob.type && blob.type.includes('webm')) ? 'webm' : (blob && blob.type && blob.type.includes('mp4')) ? 'mp4' : 'mp4';
+            dl.download = `music-video.${ext}`;
+            dl.textContent = 'Download Video';
+            dl.className = 'sota-button';
+            dl.style.display = 'inline-block';
+            dl.style.marginTop = '10px';
+            videoPreview.appendChild(dl);
             
             // Show scene editor
             document.getElementById('sceneEditor').style.display = 'block';
@@ -1307,21 +1316,19 @@ Be specific about timing, scenes, and visual elements."
 
         // 👁️ PREVIEW & EXPORT
         function previewVideo() {
-            if (!currentAudio) {
-                alert('⚠️ Please upload an audio file first!');
-                return;
-            }
-            
-            alert('👁️ Video preview would open in a new window. This is a demo interface.');
+            const vid = document.querySelector('#videoPreview video.preview-video');
+            if (vid && vid.src) { vid.play(); return; }
+            alert('⚠️ Generate a video first (upload audio and click Generate).');
         }
 
         function exportVideo() {
-            if (isGenerating) {
-                alert('⚠️ Please wait for video generation to complete!');
-                return;
-            }
-            
-            alert('💾 Video export started! You will be notified when ready for download.');
+            if (isGenerating) { return; }
+            const vid = document.querySelector('#videoPreview video.preview-video');
+            if (!vid || !vid.src) { alert('⚠️ No generated video to export.'); return; }
+            const a = document.createElement('a');
+            a.href = vid.src;
+            a.download = 'music-video';
+            a.click();
         }
 
         // 💾 PROJECT MANAGEMENT
@@ -1400,5 +1407,6 @@ Be specific about timing, scenes, and visual elements."
         console.log('🔒 All content strictly copyrighted and protected');
         console.log('⚖️ Unauthorized use prohibited and subject to legal action');
     </script>
+    <script src="./composer-shim.js"></script>
 </body>
 </html>

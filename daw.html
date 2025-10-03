@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Titan7 DAW - Revolutionary Visual Concept</title>
     <script src="config.js"></script>
+    <script src="./composer-shim.js"></script>
     <style>
         :root {
             --ink-1: #070b14;
@@ -1127,13 +1128,13 @@
         <div class="timeline-area">
             <div class="timeline-ruler">
                 <div class="timeline-controls">
-                    <span style="color: var(--muted);">⏱️ 00:02:45</span>
+                    <span id="timelineTimeLabel" style="color: var(--muted);">⏱️ 00:00</span>
                     <span style="margin-left: 20px; color: var(--muted);">🎵 4/4</span>
                     <span style="margin-left: 20px; color: var(--muted);">📏 1/16</span>
                 </div>
             </div>
             <div style="height: 80px; background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 25%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.08) 75%, rgba(255,255,255,0.04) 100%); border: 1px solid rgba(103, 232, 249, 0.25); border-radius: 5px; position: relative;">
-                <div style="position: absolute; top: 0; left: 30%; width: 3px; height: 100%; background: #22d3ee; animation: pulse 1s infinite;"></div>
+                <div id="timelinePlayhead" style="position: absolute; top: 0; left: 0%; width: 3px; height: 100%; background: #22d3ee; animation: pulse 1s infinite;"></div>
                 <div style="position: absolute; top: 10px; left: 10%; right: 60%; height: 20px; background: linear-gradient(90deg, rgba(34, 211, 238, 0.5), rgba(232, 121, 249, 0.5)); border-radius: 3px; opacity: 0.8;"></div>
                 <div style="position: absolute; bottom: 10px; left: 40%; right: 20%; height: 15px; background: linear-gradient(90deg, rgba(96, 165, 250, 0.5), rgba(34, 211, 238, 0.5)); border-radius: 3px; opacity: 0.8;"></div>
             </div>
@@ -2238,6 +2239,100 @@
         let trackStates = {};
     let projectMeta = { name: 'Untitled Project', bpm: 120, key: 'C' };
 
+        // 🔊 Minimal Web Audio Engine
+        let audioCtx = null;
+        let masterGain = null;
+        const trackGains = new Map(); // trackNumber -> GainNode
+        const trackBuffers = new Map(); // trackNumber -> AudioBuffer
+        const trackSources = new Map(); // trackNumber -> { source: AudioBufferSourceNode, startedAt: number }
+        let transportStartCtxTime = 0; // AudioContext.currentTime when started
+        let transportStartSongTime = 0; // seconds into song when started (for resume)
+        let transportRAF = 0;
+        const songLengthSecondsDefault = 180; // fallback timeline length if unknown
+
+        function ensureAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 1;
+                masterGain.connect(audioCtx.destination);
+                // Pre-create track gains
+                for (let i = 1; i <= 24; i++) {
+                    const g = audioCtx.createGain();
+                    g.gain.value = trackStates[i]?.muted ? 0 : (trackStates[i]?.volume ?? 75) / 100;
+                    g.connect(masterGain);
+                    trackGains.set(i, g);
+                }
+            }
+        }
+
+        function getSongSeconds() {
+            // Approximate length from longest loaded buffer; otherwise default
+            let max = 0;
+            trackBuffers.forEach(buf => { if (buf) max = Math.max(max, buf.duration); });
+            return max || songLengthSecondsDefault;
+        }
+
+        function stopAllSources() {
+            trackSources.forEach(({ source }) => {
+                try { source.stop(); } catch(e) {}
+            });
+            trackSources.clear();
+        }
+
+        function scheduleAllFrom(offsetSec) {
+            stopAllSources();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            transportStartCtxTime = now;
+            transportStartSongTime = offsetSec || 0;
+            // For each loaded buffer, create a new source starting at offset
+            trackBuffers.forEach((buffer, trackNum) => {
+                if (!buffer) return;
+                try {
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(trackGains.get(trackNum));
+                    const startOffset = Math.min(buffer.duration, Math.max(0, transportStartSongTime));
+                    source.start(now, startOffset);
+                    trackSources.set(trackNum, { source, startedAt: now - startOffset });
+                } catch (e) {
+                    console.warn('Track start failed', trackNum, e);
+                }
+            });
+            startTransportRAF();
+        }
+
+        function startTransportRAF() {
+            cancelAnimationFrame(transportRAF);
+            const playhead = document.getElementById('timelinePlayhead');
+            const timeLabel = document.getElementById('timelineTimeLabel');
+            const total = getSongSeconds();
+            const tick = () => {
+                if (!audioCtx) return;
+                const elapsed = (audioCtx.currentTime - transportStartCtxTime) + transportStartSongTime;
+                const clamped = Math.max(0, Math.min(total, elapsed));
+                // UI: time label mm:ss
+                if (timeLabel) {
+                    const m = Math.floor(clamped / 60);
+                    const s = Math.floor(clamped % 60);
+                    timeLabel.textContent = `⏱️ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                }
+                // UI: playhead percent
+                if (playhead) {
+                    const pct = (total > 0) ? (clamped / total) * 100 : 0;
+                    playhead.style.left = `${pct}%`;
+                }
+                if (clamped >= total) {
+                    // reached end
+                    togglePlay(false); // stop
+                    return;
+                }
+                transportRAF = requestAnimationFrame(tick);
+            };
+            transportRAF = requestAnimationFrame(tick);
+        }
+
         // Initialize track states
         for (let i = 1; i <= 24; i++) {
             trackStates[i] = {
@@ -2276,6 +2371,22 @@
             console.log(`Selected Track ${trackNumber}: ${trackName} (${trackInstrument})`);
         }
 
+        function updateTrackGain(trackNumber) {
+            // Apply mute/solo/volume to gain node
+            const g = trackGains && trackGains.get ? trackGains.get(trackNumber) : null;
+            if (!g) return;
+            const state = trackStates[trackNumber];
+            // Solo logic: if any solo active and this track isn't solo, mute it
+            const anySolo = Object.values(trackStates).some(s => s.solo);
+            const baseVol = (state.volume ?? 75) / 100;
+            const effective = (state.muted || (anySolo && !state.solo)) ? 0 : baseVol;
+            if (audioCtx) {
+                g.gain.setTargetAtTime(effective, audioCtx.currentTime, 0.01);
+            } else {
+                g.gain.value = effective;
+            }
+        }
+
         function toggleTrackRecord(trackNumber) {
             const state = trackStates[trackNumber];
             state.recording = !state.recording;
@@ -2308,6 +2419,8 @@
                 muteBtn.classList.remove('active');
                 track.style.opacity = '1';
             }
+            // reflect in audio graph
+            if (typeof updateTrackGain === 'function') updateTrackGain(trackNumber);
         }
 
         function toggleTrackSolo(trackNumber) {
@@ -2332,22 +2445,41 @@
                     t.style.opacity = '1';
                 });
             }
+            // reflect in audio graph for all tracks (solo logic)
+            if (typeof updateTrackGain === 'function') {
+                for (let i = 1; i <= 24; i++) updateTrackGain(i);
+            }
         }
 
-        function togglePlay() {
-            isPlaying = !isPlaying;
-            const btn = event.target;
-            btn.textContent = isPlaying ? '⏸️ PAUSE' : '▶️ PLAY';
-            btn.style.background = isPlaying ? 
-                'linear-gradient(135deg, #32CD32 0%, #228B22 100%)' : 
-                'linear-gradient(135deg, #FF4500 0%, #FF0000 100%)';
-                
-            // Animate waveforms when playing
-            if (isPlaying) {
-                startWaveformAnimation();
+        function togglePlay(forceState) {
+            // forceState: true start, false stop, undefined toggle
+            const btn = document.querySelector('button[onclick="togglePlay()"]') || event?.target;
+            const wantPlay = (typeof forceState === 'boolean') ? forceState : !isPlaying;
+            if (wantPlay === isPlaying) return; // no change
+            ensureAudio();
+            if (wantPlay) {
+                // start/resume from current stored position
+                scheduleAllFrom(transportStartSongTime || 0);
+                isPlaying = true;
             } else {
-                stopWaveformAnimation();
+                // pause (keep playhead where it is)
+                if (audioCtx) {
+                    const elapsed = (audioCtx.currentTime - transportStartCtxTime) + transportStartSongTime;
+                    transportStartSongTime = Math.max(0, Math.min(getSongSeconds(), elapsed));
+                } else {
+                    transportStartSongTime = 0;
+                }
+                stopAllSources();
+                cancelAnimationFrame(transportRAF);
+                isPlaying = false;
             }
+            if (btn) {
+                btn.textContent = isPlaying ? '⏸️ PAUSE' : '▶️ PLAY';
+                btn.style.background = isPlaying ? 
+                    'linear-gradient(135deg, #32CD32 0%, #228B22 100%)' : 
+                    'linear-gradient(135deg, #FF4500 0%, #FF0000 100%)';
+            }
+            if (isPlaying) startWaveformAnimation(); else stopWaveformAnimation();
         }
 
         function toggleRecord() {
@@ -2363,6 +2495,7 @@
         }
 
         function stop() {
+            // hard stop, reset playhead/time
             isPlaying = false;
             isRecording = false;
             document.querySelector('button[onclick="togglePlay()"]').textContent = '▶️ PLAY';
@@ -2374,7 +2507,14 @@
                     toggleTrackRecord(i);
                 }
             }
-            
+            // Audio graph
+            cancelAnimationFrame(transportRAF);
+            stopAllSources();
+            transportStartSongTime = 0;
+            const playhead = document.getElementById('timelinePlayhead');
+            const timeLabel = document.getElementById('timelineTimeLabel');
+            if (playhead) playhead.style.left = '0%';
+            if (timeLabel) timeLabel.textContent = '⏱️ 00:00';
             stopWaveformAnimation();
         }
 
@@ -2552,6 +2692,7 @@
                     const volumePercent = 100 - (y / (rect.height - 15)) * 100;
                     if (index < 24) {
                         trackStates[index + 1].volume = volumePercent;
+                        updateTrackGain(index + 1);
                     }
                 }
             });
@@ -2592,6 +2733,7 @@
                                     trackStates[t.id].volume = t.volume;
                                     const handle = el.querySelector('.volume-handle');
                                     if (handle) handle.style.left = `${Math.max(0, Math.min(100, t.volume))}%`;
+                                    updateTrackGain(t.id);
                                 }
                                 if (t.muted) {
                                     if (!trackStates[t.id].muted) toggleTrackMute(t.id);
@@ -2620,7 +2762,11 @@
                     const file = ev.target.files && ev.target.files[0];
                     if (!file) return;
                     try {
-                        // For now: label the selected track and show a toast. Full waveform decoding can be added next.
+                        ensureAudio();
+                        // Decode audio to buffer and assign to selected track
+                        const arrayBuf = await file.arrayBuffer();
+                        const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+                        trackBuffers.set(selectedTrack, audioBuf);
                         const trackEl = document.querySelector(`.track[data-track="${selectedTrack}"]`);
                         if (trackEl) {
                             trackEl.querySelector('.track-name').textContent = `🎵 ${file.name}`;
@@ -2678,6 +2824,7 @@
                     
                     const handle = track.querySelector('.volume-handle');
                     handle.style.left = `${percent}%`;
+                    updateTrackGain(trackNumber);
                 });
             });
             

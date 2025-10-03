@@ -696,7 +696,7 @@
     </style>
 </head>
 <body>
-    <!-- 🎬 HEADER -->
+    <script src="composer-shim.js"></script>
     <header class="header">
         <div class="header-content">
             <div class="logo-section">
@@ -1415,31 +1415,43 @@
             vid.controls = true;
             vid.src = url;
             videoPreview.appendChild(vid);
+            // Add a download button
+            const dl = document.createElement('a');
+            dl.href = url;
+            const ext = (blob && blob.type && blob.type.includes('webm')) ? 'webm' : (blob && blob.type && blob.type.includes('mp4')) ? 'mp4' : 'mp4';
+            dl.download = `marketing-video.${ext}`;
+            dl.textContent = 'Download Video';
+            dl.className = 'sota-button';
+            dl.style.display = 'inline-block';
+            dl.style.marginTop = '10px';
+            videoPreview.appendChild(dl);
 
             alert('🎉 Your marketing video has been generated successfully!');
         }
 
         // 👁️ PREVIEW & EXPORT
         function previewVideo() {
-            if (!selectedTemplate) {
-                alert('⚠️ Please select a template first!');
-                return;
-            }
-            
-            alert('👁️ Video preview would open in fullscreen mode with playback controls.');
+            const vid = document.querySelector('#videoPreview video.preview-video');
+            if (vid && vid.src) { vid.play(); return; }
+            alert('⚠️ Generate a video first (select template and click Generate).');
         }
 
         function quickExport() {
-            if (!selectedTemplate) {
-                alert('⚠️ Please generate a video first!');
-                return;
-            }
-            
-            alert('⚡ Quick export options:\n\n📱 Instagram (1:1) - Ready\n📘 Facebook (16:9) - Ready\n📺 YouTube (16:9) - Ready\n🎵 TikTok (9:16) - Ready');
+            const vid = document.querySelector('#videoPreview video.preview-video');
+            if (!vid || !vid.src) { alert('⚠️ No generated video to export.'); return; }
+            const a = document.createElement('a');
+            a.href = vid.src;
+            a.download = 'marketing-video';
+            a.click();
         }
 
         function exportVideo() {
-            alert('📤 Export started!\n\nFormats available:\n• MP4 (1080p) - 15 MB\n• MOV (4K) - 45 MB\n• GIF (720p) - 8 MB\n• WebM (1080p) - 12 MB\n\nEstimated completion: 2 minutes');
+            const vid = document.querySelector('#videoPreview video.preview-video');
+            if (!vid || !vid.src) { alert('⚠️ No generated video to export.'); return; }
+            const a = document.createElement('a');
+            a.href = vid.src;
+            a.download = 'marketing-video';
+            a.click();
         }
 
         // ✏️ EDITING FUNCTIONS

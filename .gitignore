@@ -1,35 +1,36 @@
-# Python
-__pycache__/
-*.pyc
-.venv/
-.env/
-venv/
-
-/.env
-venv/
-
-# Secrets
-.env
-**/.env
-*.env
-.env.*
-**/.env.*
-*.env.*
-Social Media/.env
-node_modules/
-
-# Models / caches (do not commit large assets)
-models/
-cache/
-
-# OS cruft
+# OS
 .DS_Store
 Thumbs.db
 
-# Outputs / temp
-outputs/
-*.mp4
-*.wav
-*.webm
-*.sota
-*.json
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+build/
+.cache/
+
+# Environments and secrets
+.env
+.env.*
+*.env
+venv/
+.envrc
+
+# VS Code
+.vscode/
+
+# Social Media subproject
+Social Media/venv/
+Social Media/__pycache__/
+Social Media/.env
+Social Media/.env.*

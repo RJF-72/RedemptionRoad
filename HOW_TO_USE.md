@@ -4,6 +4,7 @@ This guide walks you through the core tools end-to-end: composing, recording, vo
 
 Quick links
 - Live site: https://redemptionrd.shop
+- Songwriter: https://redemptionrd.shop/SOTA_Songwriter.html
 - Music Video Generator: https://redemptionrd.shop/SOTA_Music_Video_Generator.html
 - Marketing Video Creator: https://redemptionrd.shop/SOTA_Marketing_Video_Creator.html
 - Script-to-Video: https://redemptionrd.shop/SOTA_Script_To_Video_Engine.html
@@ -13,7 +14,28 @@ Quick links
 
 ---
 
-## 1) Compose with the Synthesizer
+## 1) Write with the SOTA Songwriter
+File: `SOTA_Songwriter.html` (uses /api backend)
+
+What you can do
+- Paste a story or a few prompts and pick a genre/mood
+- Generate a titled song with structured sections (Intro, Verses, Chorus/Hook, Bridge, Outro)
+- Get chord suggestions per section, a key, and BPM
+- Copy lyrics or send them directly to the Synthesizer
+
+Steps
+1. Open the Songwriter and enter your story or prompts.
+2. Choose Genre, Mood, Perspective, Rhyme Scheme, and Complexity.
+3. Click Generate Song. Review the title, lyrics, and chords.
+4. Click Copy Lyrics or Send to Synth to continue production.
+
+Notes
+- Copy/paste and text selection are enabled in all lyric/description fields.
+- The songwriter is CPU-only and uses heuristics for progressions/lyrics (open-source, no paid APIs).
+
+---
+
+## 2) Compose with the Synthesizer
 File: `synthesizer.html`
 
 What you can do
@@ -25,7 +47,7 @@ What you can do
 Steps
 1. Open the page and press the keyboard to audition sounds.
 2. Use the top controls to tweak Waveform, Filter cutoff/resonance, and FX sends.
-3. Open the Lyrics panel; type verses/chorus and click Save to JSON to export.
+3. Open the Lyrics panel; paste your lyrics (copy/paste enabled) or type verses/chorus, then click Save to JSON to export.
 4. Record a quick idea with the Record button; export your audio if desired.
 5. Export Project to save a `.sota`/JSON file for importing into the DAW.
 
@@ -35,7 +57,7 @@ Tips
 
 ---
 
-## 2) Arrange in the DAW
+## 3) Arrange in the DAW
 File: `daw.html`
 
 What you can do
@@ -54,7 +76,7 @@ Tips
 
 ---
 
-## 3) Enhance vocals with WarriorMic
+## 4) Enhance vocals with WarriorMic
 File: `voice.html`
 
 What you can do
@@ -73,7 +95,7 @@ Tips
 
 ---
 
-## 4) Generate a Music Video
+## 5) Generate a Music Video
 File: `SOTA_Music_Video_Generator.html` (uses /api backend)
 
 What you can do
@@ -97,7 +119,7 @@ Troubleshooting
 
 ---
 
-## 5) Create Marketing Videos
+## 6) Create Marketing Videos
 File: `SOTA_Marketing_Video_Creator.html` (uses /api backend)
 
 What you can do
@@ -114,7 +136,7 @@ Tips
 
 ---
 
-## 6) Script to Video
+## 7) Script to Video
 File: `SOTA_Script_To_Video_Engine.html`
 
 What you can do

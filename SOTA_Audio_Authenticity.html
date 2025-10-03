@@ -62,6 +62,57 @@
   <script>
     const btn = document.getElementById('run');
     const out = document.getElementById('out');
+
+    // Backend health check banner
+    (async function(){
+      const base = (window.SOTA_BACKEND_URL || '');
+      if (!base) return; // same-origin proxy
+      try{
+        const r = await fetch(base + '/api/health', {cache:'no-store'});
+        if(!r.ok) throw new Error('bad');
+        const j = await r.json();
+        if(j && j.status === 'ok') return; // healthy
+      }catch(e){
+        const nav = document.querySelector('nav .inner');
+        const warn = document.createElement('div');
+        warn.style.marginLeft = 'auto';
+        warn.style.color = '#f59e0b';
+        warn.style.fontSize = '12px';
+        warn.textContent = 'Backend offline — using local estimator';
+        nav && nav.appendChild(warn);
+      }
+    })();
+
+    // Tiny client-side fallback estimator (RMS + naive spectral centroid)
+    async function estimateLocalAuthenticity(fileA, fileB){
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const [abA, abB] = await Promise.all([fileA.arrayBuffer(), fileB.arrayBuffer()]);
+      const [bufA, bufB] = await Promise.all([
+        ctx.decodeAudioData(abA.slice(0)),
+        ctx.decodeAudioData(abB.slice(0))
+      ]);
+      function feats(buf){
+        const x = buf.getChannelData(0);
+        const n = x.length;
+        const L = Math.min(n, buf.sampleRate * 5); // analyze up to 5s
+        const s = x.subarray(0, L);
+        const rms = Math.sqrt(s.reduce((acc,v)=>acc+v*v,0)/Math.max(1,s.length));
+        // crude centroid proxy via zero-crossings density
+        let zc=0; for(let i=1;i<s.length;i++){ const a=s[i-1], b=s[i]; if((a>=0&&b<0)||(a<0&&b>=0)) zc++; }
+        const centroid = zc/Math.max(1,s.length);
+        return {rms, centroid};
+      }
+      const fa = feats(bufA), fb = feats(bufB);
+      const rmsSim = 1 - Math.min(1, Math.abs(fa.rms - fb.rms) / (fa.rms + fb.rms + 1e-6));
+      const cenSim = 1 - Math.min(1, Math.abs(fa.centroid - fb.centroid) / (fa.centroid + fb.centroid + 1e-6));
+      const sim = 0.6*rmsSim + 0.4*cenSim;
+      return {
+        authenticity_percent: Math.round(sim*10000)/100,
+        similarity: { rms_similarity: Math.round(rmsSim*1000)/1000, centroid_similarity: Math.round(cenSim*1000)/1000 },
+        dtw_raw: null,
+        profile: 'local-estimate'
+      };
+    }
     btn.addEventListener('click', async () => {
       const ref = document.getElementById('ref').files[0];
       const cand = document.getElementById('cand').files[0];
@@ -73,14 +124,23 @@
         fd.append('candidate', cand);
         fd.append('profile', document.getElementById('profile').value);
         const base = (window.SOTA_BACKEND_URL || '');
-        const resp = await fetch(base + '/api/audio/authenticity', { method:'POST', body: fd });
-        const data = await resp.json();
-        if(!resp.ok){ throw new Error(data.error || 'Request failed'); }
+        let usedFallback = false;
+        let data;
+        try{
+          const resp = await fetch(base + '/api/audio/authenticity', { method:'POST', body: fd });
+          if(!resp.ok) throw new Error('bad');
+          data = await resp.json();
+        }catch(e){
+          usedFallback = true;
+          data = await estimateLocalAuthenticity(ref, cand);
+        }
         out.innerHTML = `
-          <strong>Authenticity:</strong> ${data.authenticity_percent}%<br/>
-          <strong>Similarity (DTW-based):</strong> ${data.similarity.dtw_based}<br/>
-          <strong>Similarity (Centroid Corr):</strong> ${data.similarity.centroid_corr}<br/>
-          <em>DTW raw:</em> ${data.dtw_raw}
+          <strong>Authenticity:</strong> ${data.authenticity_percent}% ${usedFallback?'<span style="color:#f59e0b">(local estimate)</span>':''}<br/>
+          ${data.similarity?.dtw_based!==undefined?`<strong>Similarity (DTW-based):</strong> ${data.similarity.dtw_based}<br/>`:''}
+          ${data.similarity?.centroid_corr!==undefined?`<strong>Similarity (Centroid Corr):</strong> ${data.similarity.centroid_corr}<br/>`:''}
+          ${data.similarity?.rms_similarity!==undefined?`<strong>RMS similarity:</strong> ${data.similarity.rms_similarity}<br/>`:''}
+          ${data.similarity?.centroid_similarity!==undefined?`<strong>Centroid similarity:</strong> ${data.similarity.centroid_similarity}<br/>`:''}
+          ${data.dtw_raw!==null?`<em>DTW raw:</em> ${data.dtw_raw}`:''}
         `;
       }catch(e){
         out.textContent = 'Error: ' + e.message;
@@ -89,5 +149,6 @@
       }
     });
   </script>
+  <script src="./composer-shim.js"></script>
 </body>
 </html>

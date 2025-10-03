@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SI Multi‑Layer Swarm Video Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;background:linear-gradient(135deg,#0a0f1a,#0b1022);color:#e6f1ff;font-family:'Inter',system-ui,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px 16px}
+    .nav{position:sticky;top:0;background:rgba(10,15,26,.6);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
+    .nav-inner{display:flex;gap:12px;align-items:center;max-width:1100px;margin:0 auto;padding:12px 16px}
+    a{color:#67e8f9;text-decoration:none}
+    h1{font-size:28px;margin:16px 0}
+    .grid{display:grid;grid-template-columns:320px 1fr;gap:16px}
+    .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px}
+    label{display:block;font-size:12px;color:#bcd;margin-bottom:6px}
+    input[type=file],input[type=range],select,input[type=text]{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.35);color:#e6faff}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(103,232,249,.2),rgba(103,232,249,.1));color:#e6faff;cursor:pointer}
+    canvas{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#000}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  </style>
+</head>
+<body>
+  <div class="nav"><div class="nav-inner">
+    <a href="./index.html">Home</a>
+    <span style="opacity:.6">/</span>
+    <span>SI Swarm Video</span>
+  </div></div>
+  <div id="root" class="wrap"></div>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script>
+    const {useState,useRef,useEffect} = React;
+    function App(){
+      const [isGenerating,setIsGenerating]=useState(false);
+      const [progress,setProgress]=useState(0);
+      const [audioFile,setAudioFile]=useState(null);
+      const [mode,setMode]=useState('music');
+      const [cfg,setCfg]=useState({swarmSize:60,iterations:120,cinematicMode:'standard',coherenceWeight:.8,palette:'vibrant'});
+      const [text,setText]=useState({headline:'Your Brand Here',subtext:'Powered by Music',cta:'Learn More'});
+      const [frames,setFrames]=useState([]);
+      const [fps,setFps]=useState(30);
+      const [isPlaying,setIsPlaying]=useState(false);
+      const [isRecording,setIsRecording]=useState(false);
+      const [downloadUrl,setDownloadUrl]=useState('');
+      const canvasRef=useRef(null); const animRef=useRef(null);
+      const audioCtxRef=useRef(null); const audioBufRef=useRef(null); const audioSrcRef=useRef(null);
+      const startTimeRef=useRef(0); const mediaRecRef=useRef(null); const mediaChunksRef=useRef([]);
+
+      const palettes={
+        vibrant:[0,45,200,280],
+        warm:[10,25,35,5],
+        cool:[180,200,220,160],
+        neon:[140,190,300,330],
+        mono:[210,210,210,210]
+      };
+
+      class Swarm{ constructor(cfg,mode){this.c=cfg;this.m=mode;this.bg=[];this.fg=[];this.fx=[];this.tx=[]; this.init();}
+        init(){const n=this.c.swarmSize; for(let i=0;i<n;i++) this.bg.push(this.p('background')); for(let i=0;i<n/2;i++) this.fg.push(this.p('foreground')); for(let i=0;i<n/3;i++) this.fx.push(this.p('effects')); if(this.m==='marketing'){ for(let i=0;i<20;i++) this.tx.push(this.p('text'));}}
+        p(layer){const pal=palettes[cfg.palette]||palettes.vibrant; const baseHue=pal[Math.floor(Math.random()*pal.length)];
+          const pos={hue:(baseHue+40*Math.random())%360,saturation:70+30*Math.random(),brightness:60+40*Math.random(),motion:10*Math.random(),complexity:Math.random(),depth:Math.random(),rotation:360*Math.random(),scale:.5+1.5*Math.random()};
+          const vel={}; Object.keys(pos).forEach(k=>vel[k]=(Math.random()-.5)*(k==='hue'?20:k==='rotation'?10:2)); return {position:pos,velocity:vel,bestPosition:{...pos},bestScore:-1,layer};}
+        thirds(p){const h=[.33,.67], v=[.33,.67]; const dn=p.depth, rn=p.rotation/360; let dh=1,dv=1; h.forEach(t=>dh=Math.min(dh,Math.abs(dn-t))); v.forEach(t=>dv=Math.min(dv,Math.abs(rn-t))); return 1-((dh+dv)/2);}
+        fit(p,a,t){const en=p.brightness/100*a.energy + p.motion/10*a.energy; const beat=a.onset* p.motion; const col=(p.saturation/100)*a.spectralCentroid; const thirds=this.thirds(p); const phi=1.618; const aest=1-Math.abs((p.hue/360)-(1/phi)); const mom=a.energy>0.5?p.motion/10:(1-p.motion/10); const depth=p.layer==='background'?p.depth:1-p.depth; let s=0; if(p.layer==='background'){ s= .15*en+.25*col+.20*aest+.25*depth+.15*(1-p.complexity);} else if(p.layer==='foreground'){ s=.30*en+.25*beat+.20*thirds+.15*p.complexity+.10*depth;} else if(p.layer==='effects'){ const bass=a.bass*(p.scale/2); const hi=a.high*p.motion; s=.35*beat+.25*bass+.20*hi+.20*mom;} else { const read=p.brightness>70?1:p.brightness/70; const rhy=a.onset; s=.40*read+.30*rhy+.20*aest+.10*(1-p.motion/10);} if(this.c.cinematicMode==='cinematic') s*=1+depth*.3; else if(this.c.cinematicMode==='energetic') s*=1+(en)*.5; else if(this.c.cinematicMode==='minimal') s*=1+(1-p.complexity)*.4; return s;}
+        upd(p,a,t,i,sw){const w=.7-(i/this.c.iterations)*.5, c1=2,c2=2; const idx=sw.indexOf(p); let lb=p; for(let k=-5;k<=5;k++){const ni=(idx+k+sw.length)%sw.length; if(sw[ni].bestScore>lb.bestScore) lb=sw[ni];}
+          Object.keys(p.velocity).forEach(k=>{const r1=Math.random(), r2=Math.random(); const cog=c1*r1*(p.bestPosition[k]-p.position[k]); const soc=c2*r2*(lb.bestPosition[k]-p.position[k]); p.velocity[k]=w*p.velocity[k]+cog+soc; p.position[k]+=p.velocity[k]; const B={hue:360,saturation:100,brightness:100,motion:10,complexity:1,depth:1,rotation:360,scale:3}; p.position[k]=Math.max(0,Math.min(B[k]||1,p.position[k]));});
+          const sc=this.fit(p,a,t); if(sc>p.bestScore){p.bestScore=sc; p.bestPosition={...p.position};}}
+        frame(a,t){ for(let i=0;i<this.c.iterations;i++){ this.bg.forEach(p=>this.upd(p,a,t,i,this.bg)); this.fg.forEach(p=>this.upd(p,a,t,i,this.fg)); this.fx.forEach(p=>this.upd(p,a,t,i,this.fx)); if(this.m==='marketing') this.tx.forEach(p=>this.upd(p,a,t,i,this.tx)); }
+          const best = arr => arr.reduce((b,p)=>p.bestScore>b.bestScore?p:b,arr[0]);
+          return {background:best(this.bg).bestPosition, foreground:best(this.fg).bestPosition, effects:best(this.fx).bestPosition, text:this.m==='marketing'?best(this.tx).bestPosition:null, audio:a};}
+      }
+      function analyze(buf){ const s=buf.getChannelData(0), sr=buf.sampleRate, feats=[], win=Math.floor(sr*.05); let prevEnergy=0; const onsetEnv=[]; for(let i=0;i<s.length;i+=win){ const w=s.slice(i,Math.min(i+win,s.length)); const energy=w.reduce((q,v)=>q+v*v,0)/Math.max(1,w.length); const dE=Math.max(0,energy-prevEnergy); prevEnergy=energy; const b=w.slice(0,Math.floor(w.length*.2)).reduce((q,v)=>q+Math.abs(v),0)/(w.length*.2); const m=w.slice(Math.floor(w.length*.2),Math.floor(w.length*.6)).reduce((q,v)=>q+Math.abs(v),0)/(w.length*.4); const h=w.slice(Math.floor(w.length*.6)).reduce((q,v)=>q+Math.abs(v),0)/(w.length*.4); let z=0; for(let j=1;j<w.length;j++){ const a=w[j-1], bb=w[j]; if((a>=0&&bb<0)||(a<0&&bb>=0)) z++; } const sc=z/Math.max(1,w.length); onsetEnv.push(dE); feats.push({energy:Math.sqrt(energy), spectralCentroid:sc, onset:0, beatStrength:0.3, bass:b*5, mid:m*3, high:h*4}); }
+        // crude tempo estimate via autocorrelation of onset
+        const mean=onsetEnv.reduce((a,b)=>a+b,0)/Math.max(1,onsetEnv.length); const cen=onsetEnv.map(v=>v-mean); let bestLag=0, best=0; for(let lag=5;lag<60;lag++){ let sum=0; for(let i=0;i<cen.length-lag;i++){ sum+=cen[i]*cen[i+lag]; } if(sum>best){best=sum; bestLag=lag;} }
+        const bpm = bestLag>0 ? Math.min(180,Math.max(60, (60/(win/sr))* (1/bestLag))) : 120;
+        // mark onsets by threshold
+        const thr = (Math.max(...onsetEnv)||0)*0.5;
+        for(let i=0;i<feats.length;i++){ const on = onsetEnv[i]>thr?1:0.2; feats[i].onset=on; feats[i].tempo=bpm; feats[i].beatStrength=on; }
+        return feats; }
+
+      async function generate(){ if(!audioFile) return; setIsGenerating(true); setProgress(0); setFrames([]); setDownloadUrl('');
+        try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); audioCtxRef.current=ctx; const ab=await audioFile.arrayBuffer(); const buf=await ctx.decodeAudioData(ab.slice(0)); audioBufRef.current=buf; const feats=analyze(buf); const swarm=new Swarm(cfg,mode); const fr=[]; const total=feats.length; for(let i=0;i<total;i++){ fr.push(swarm.frame(feats[i],i)); if(i%Math.ceil(total/100)===0) setProgress((i+1)/total*100); if(i%10===0) await new Promise(r=>setTimeout(r,0)); } setFrames(fr); play(fr,true); } catch(e){ console.error(e); alert('Error generating video'); } setIsGenerating(false); }
+
+      function drawFrame(ctx,cvs,f,k,camZoom){ const {background:bg,foreground:fg,effects:ef} = f; // background gradient with subtle zoom
+        ctx.save(); ctx.translate(cvs.width/2,cvs.height/2); ctx.scale(camZoom,camZoom); ctx.translate(-cvs.width/2,-cvs.height/2);
+        const grad=ctx.createRadialGradient(cvs.width/2,cvs.height/2,0,cvs.width/2,cvs.height/2,cvs.width*.8);
+        grad.addColorStop(0,`hsl(${bg.hue},${bg.saturation}%,${bg.brightness}%)`);
+        grad.addColorStop(1,`hsl(${(bg.hue+30)%360},${bg.saturation*.8}%,${bg.brightness*.25}%)`);
+        ctx.fillStyle=grad; ctx.fillRect(0,0,cvs.width,cvs.height);
+        // effects particles with glow
+        const pc=Math.floor(25+ef.motion*35); ctx.globalCompositeOperation='lighter';
+        for(let i=0;i<pc;i++){ const ang=i/pc*Math.PI*2 + k*.05; const r=ef.motion*50 + bg.depth*120; const x=cvs.width/2+Math.cos(ang)*r; const y=cvs.height/2+Math.sin(ang)*r; const size=ef.scale*8 + f.audio.bass*12; ctx.fillStyle=`hsla(${(ef.hue+i*12)%360},${ef.saturation}%,${ef.brightness}%,${.25+ef.complexity*.5})`; ctx.beginPath(); ctx.arc(x,y,size,0,Math.PI*2); ctx.fill(); }
+        ctx.globalCompositeOperation='source-over';
+        // foreground polygon with stroke + fill
+        ctx.save(); ctx.translate(cvs.width/2,cvs.height/2); ctx.rotate(fg.rotation*Math.PI/180);
+        const size=120+fg.scale*90; const sides=f.audio.energy>0.5?6:4; ctx.beginPath(); for(let i=0;i<sides;i++){ const a=i/sides*Math.PI*2; const x=Math.cos(a)*size; const y=Math.sin(a)*size; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);} ctx.closePath();
+        ctx.strokeStyle=`hsla(${fg.hue},${fg.saturation}%,${fg.brightness}%,0.9)`; ctx.lineWidth=3+f.audio.high*6; ctx.stroke(); ctx.fillStyle=`hsla(${fg.hue},${fg.saturation}%,${fg.brightness}%,${0.12+fg.complexity*.28})`; ctx.fill(); ctx.restore();
+        // vignette
+        const vg=ctx.createRadialGradient(cvs.width/2,cvs.height/2,Math.min(cvs.width,cvs.height)*.4,cvs.width/2,cvs.height/2,Math.max(cvs.width,cvs.height)*.7);
+        vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.35)'); ctx.fillStyle=vg; ctx.fillRect(0,0,cvs.width,cvs.height);
+        ctx.restore();
+      }
+
+      function play(fr,withAudio){ const cvs=canvasRef.current; if(!cvs||!fr.length) return; const ctx=cvs.getContext('2d');
+        // start audio
+        if(withAudio && audioBufRef.current){ try{ if(audioSrcRef.current){ audioSrcRef.current.stop(); } const src=audioCtxRef.current.createBufferSource(); src.buffer=audioBufRef.current; src.connect(audioCtxRef.current.destination); audioSrcRef.current=src; src.start(); }catch(e){ console.warn('Audio start failed',e);} }
+        startTimeRef.current=performance.now(); setIsPlaying(true);
+        const step=()=>{ if(!isPlaying) return; const now=performance.now(); const elapsed=(now-startTimeRef.current)/1000; const idx=Math.min(fr.length-1, Math.floor(elapsed*fps)); const f=fr[idx];
+          // camera zoom pulses on onsets
+          const camZoom = 1 + (f.audio.onset>0.5?0.04:0.01) + f.audio.energy*0.05;
+          ctx.clearRect(0,0,cvs.width,cvs.height);
+          drawFrame(ctx,cvs,f,idx,camZoom);
+          // marketing text overlay
+          if(mode==='marketing'){
+            ctx.save(); ctx.font=`800 ${40 + f.audio.beatStrength*10}px Inter, Arial`; ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12; ctx.fillText(text.headline,cvs.width/2,cvs.height*.28);
+            ctx.font='600 24px Inter, Arial'; ctx.fillStyle='rgba(230,240,255,0.9)'; ctx.fillText(text.subtext,cvs.width/2,cvs.height*.42);
+            const s=1+f.audio.beatStrength*.2; ctx.font=`800 ${Math.floor(28*s)}px Inter, Arial`; ctx.fillStyle='rgba(103,232,249,0.95)'; ctx.fillText(text.cta,cvs.width/2,cvs.height*.78);
+            ctx.restore();
+          }
+          if(idx<fr.length-1){ animRef.current=requestAnimationFrame(step);} else { setIsPlaying(false); }
+        };
+        animRef.current=requestAnimationFrame(step);
+      }
+
+      async function recordVideo(){ if(isRecording||!frames.length) return; setIsRecording(true); setDownloadUrl('');
+        try{ const cvs=canvasRef.current; const stream=cvs.captureStream(fps); // add audio if available
+          if(audioBufRef.current && audioCtxRef.current){ const dest=audioCtxRef.current.createMediaStreamDestination();
+            // play audio again to feed recorder
+            if(audioSrcRef.current){ try{audioSrcRef.current.stop();}catch(_){} }
+            const src=audioCtxRef.current.createBufferSource(); src.buffer=audioBufRef.current; src.connect(audioCtxRef.current.destination); src.connect(dest); audioSrcRef.current=src; src.start();
+            dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+          }
+          const mr=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'}); mediaRecRef.current=mr; mediaChunksRef.current=[];
+          mr.ondataavailable=e=>{ if(e.data && e.data.size>0) mediaChunksRef.current.push(e.data); };
+          mr.onstop=()=>{ const blob=new Blob(mediaChunksRef.current,{type:'video/webm'}); const url=URL.createObjectURL(blob); setDownloadUrl(url); setIsRecording(false); };
+          mr.start();
+          // draw frames in time
+          setIsPlaying(true); startTimeRef.current=performance.now();
+          const ctx=cvs.getContext('2d'); const totalDurSec=frames.length/fps; const endAt=performance.now()+totalDurSec*1000;
+          const loop=()=>{ if(!isRecording) return; const now=performance.now(); const elapsed=(now-startTimeRef.current)/1000; const idx=Math.min(frames.length-1, Math.floor(elapsed*fps)); const f=frames[idx]; const camZoom=1 + (f.audio.onset>0.5?0.04:0.01) + f.audio.energy*0.05; ctx.clearRect(0,0,cvs.width,cvs.height); drawFrame(ctx,cvs,f,idx,camZoom); if(mode==='marketing'){ ctx.save(); ctx.font=`800 ${40 + f.audio.beatStrength*10}px Inter, Arial`; ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12; ctx.fillText(text.headline,cvs.width/2,cvs.height*.28); ctx.font='600 24px Inter, Arial'; ctx.fillStyle='rgba(230,240,255,0.9)'; ctx.fillText(text.subtext,cvs.width/2,cvs.height*.42); const s=1+f.audio.beatStrength*.2; ctx.font=`800 ${Math.floor(28*s)}px Inter, Arial`; ctx.fillStyle='rgba(103,232,249,0.95)'; ctx.fillText(text.cta,cvs.width/2,cvs.height*.78); ctx.restore(); }
+            if(now<endAt){ requestAnimationFrame(loop);} else { mr.stop(); setIsPlaying(false); }
+          };
+          requestAnimationFrame(loop);
+        } catch(e){ console.error(e); alert('Recording failed'); setIsRecording(false); }
+      }
+      useEffect(()=>()=>{ if(animRef.current) cancelAnimationFrame(animRef.current); },[]);
+      return React.createElement('div',{},
+        React.createElement('h1',null,'SI Multi‑Layer Swarm Video Generator'),
+        React.createElement('div',{className:'grid'},
+          React.createElement('div',{className:'card'},
+            React.createElement('label',null,'Audio File'),
+            React.createElement('input',{type:'file',accept:'audio/*',onChange:e=>setAudioFile(e.target.files[0])}),
+            React.createElement('label',{style:{marginTop:10}},'Mode'),
+            React.createElement('select',{value:mode,onChange:e=>setMode(e.target.value)},
+              React.createElement('option',{value:'music'},'Music Video'),
+              React.createElement('option',{value:'marketing'},'Marketing')
+            ),
+            React.createElement('label',{style:{marginTop:10}},`Palette: ${cfg.palette}`),
+            React.createElement('select',{value:cfg.palette,onChange:e=>setCfg({...cfg,palette:e.target.value})},
+              React.createElement('option',{value:'vibrant'},'Vibrant'),
+              React.createElement('option',{value:'warm'},'Warm'),
+              React.createElement('option',{value:'cool'},'Cool'),
+              React.createElement('option',{value:'neon'},'Neon'),
+              React.createElement('option',{value:'mono'},'Mono')
+            ),
+            React.createElement('label',{style:{marginTop:10}},`Cinematography: ${cfg.cinematicMode}`),
+            React.createElement('select',{value:cfg.cinematicMode,onChange:e=>setCfg({...cfg,cinematicMode:e.target.value})},
+              React.createElement('option',{value:'standard'},'Standard'),
+              React.createElement('option',{value:'cinematic'},'Cinematic'),
+              React.createElement('option',{value:'energetic'},'Energetic'),
+              React.createElement('option',{value:'minimal'},'Minimal')
+            ),
+            React.createElement('label',null,`Swarm Size: ${cfg.swarmSize}`),
+            React.createElement('input',{type:'range',min:20,max:100,value:cfg.swarmSize,onChange:e=>setCfg({...cfg,swarmSize:parseInt(e.target.value)})}),
+            React.createElement('label',null,`Iterations: ${cfg.iterations}`),
+            React.createElement('input',{type:'range',min:50,max:200,value:cfg.iterations,onChange:e=>setCfg({...cfg,iterations:parseInt(e.target.value)})}),
+            React.createElement('div',{className:'row'},
+              React.createElement('div',null,
+                React.createElement('label',null,`FPS: ${fps}`),
+                React.createElement('input',{type:'range',min:24,max:60,value:fps,onChange:e=>setFps(parseInt(e.target.value))})
+              )
+            ),
+            mode==='marketing' && React.createElement('div',null,
+              React.createElement('label',null,'Headline'),
+              React.createElement('input',{type:'text',value:text.headline,onChange:e=>setText({...text,headline:e.target.value})}),
+              React.createElement('label',null,'Subtext'),
+              React.createElement('input',{type:'text',value:text.subtext,onChange:e=>setText({...text,subtext:e.target.value})}),
+              React.createElement('label',null,'CTA'),
+              React.createElement('input',{type:'text',value:text.cta,onChange:e=>setText({...text,cta:e.target.value})})
+            ),
+            React.createElement('div',{style:{height:10}}),
+            React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+              React.createElement('button',{className:'btn',disabled:!audioFile||isGenerating,onClick:generate}, isGenerating?'Generating…':'Generate'),
+              React.createElement('button',{className:'btn',disabled:!frames.length||isRecording,onClick:recordVideo}, isRecording?'Recording…':'Export WebM')
+            ),
+            isGenerating && React.createElement('div',{style:{marginTop:10}},
+              React.createElement('div',{style:{height:8,background:'rgba(255,255,255,.08)',borderRadius:8,overflow:'hidden'}},
+                React.createElement('div',{style:{height:'100%',width:progress+'%',background:'linear-gradient(90deg,#fbbf24,#ef4444)'}})
+              ),
+              React.createElement('div',{style:{fontSize:12,opacity:.8,marginTop:6}}, `${progress.toFixed(0)}%`)
+            ),
+            downloadUrl && React.createElement('div',{style:{marginTop:10}},
+              React.createElement('a',{href:downloadUrl,download:'swarm-video.webm',className:'btn'},'Download Video')
+            )
+          ),
+          React.createElement('div',{className:'card'},
+            React.createElement('canvas',{ref:canvasRef,width:800,height:450})
+          )
+        )
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+    <script src="./composer-shim.js"></script>
+</body>
+</html>

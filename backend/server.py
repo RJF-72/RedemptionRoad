@@ -6,11 +6,23 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from video_pipeline import build_music_video
+try:
+    # When running as a package (uvicorn backend.server:app)
+    from .video_pipeline import build_music_video  # type: ignore
+except Exception:
+    # Fallback for direct/script execution contexts
+    try:
+        # Prefer package-relative import
+        from .video_pipeline import build_music_video  # type: ignore
+    except Exception:
+        # Fallback when run as a script: PYTHONPATH includes backend dir
+        from video_pipeline import build_music_video  # type: ignore
 import io
 import wave
 import numpy as np
 from pydub import AudioSegment
+import random
+import re
 
 def _read_audio_bytes(b: bytes) -> tuple[np.ndarray, int]:
     # Try fast WAV path first
@@ -335,3 +347,247 @@ async def api_audio_authenticity(
     if "error" in result:
         return JSONResponse(result, status_code=400)
     return result
+
+# -----------------------------
+# Songwriter: prompt -> structured song
+# -----------------------------
+
+ROMAN_NUMS = {
+    'I': 0, 'ii': 2, 'II': 2, 'iii': 4, 'III': 4, 'IV': 5, 'V': 7, 'vi': 9, 'VI': 9, 'vii°': 11, 'VII': 11,
+    'i': 0, '♭VII': 10, 'bVII': 10
+}
+
+KEYS_MAJOR = [
+    'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'
+]
+KEYS_MINOR = [
+    'A minor', 'E minor', 'B minor', 'F# minor', 'C# minor', 'G# minor', 'D# minor', 'Bb minor', 'F minor', 'C minor', 'G minor', 'D minor'
+]
+
+SCALE_MAJOR = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+
+def transpose_degree(root_idx: int, semis: int) -> str:
+    idx = (root_idx + semis) % 12
+    return SCALE_MAJOR[idx]
+
+def key_root_index(key: str) -> tuple[int, bool]:
+    is_minor = 'minor' in key.lower()
+    root = key.split()[0]
+    try:
+        idx = SCALE_MAJOR.index(root if root != 'Cb' else 'B')
+    except ValueError:
+        idx = 0
+    return idx, is_minor
+
+def roman_to_chord(roman: str, key: str) -> str:
+    base_map_major = {
+        'I': 0, 'ii': 2, 'iii': 4, 'IV': 5, 'V': 7, 'vi': 9, 'vii°': 11,
+        'bVII': 10, '♭VII': 10, 'III': 4, 'II': 2, 'VII': 11
+    }
+    base_map_minor = {
+        'i': 0, 'ii': 2, 'III': 3, 'iv': 5, 'v': 7, 'VI': 8, 'VII': 10,
+        'bVII': 10, '♭VII': 10
+    }
+    idx, is_minor = key_root_index(key)
+    base = base_map_minor if is_minor else base_map_major
+    semis = base.get(roman, 0)
+    chord = transpose_degree(idx, semis)
+    # basic quality annotations (very simplified)
+    if is_minor:
+        qualities = {'i', 'iv', 'v'}
+    else:
+        qualities = {'ii', 'iii', 'vi'}
+    q = ''
+    if (not is_minor and roman in qualities) or (is_minor and roman in qualities):
+        q = 'm'
+    if '°' in roman:
+        q = 'dim'
+    return f"{chord}{q}"
+
+GENRE_PROGRESSIONS = {
+    'pop': ['I–V–vi–IV', 'vi–IV–I–V'],
+    'country': ['I–IV–V–IV', 'I–V–IV–V'],
+    'rock': ['I–bVII–IV–I', 'I–IV–V–I'],
+    'hip-hop': ['i–VI–III–VII', 'vi–IV–I–V'],
+    'edm': ['vi–IV–I–V', 'I–V–vi–IV'],
+    'r&b': ['ii–V–I–vi', 'I–vi–IV–V'],
+    'jazz': ['ii–V–I–I', 'I–vi–ii–V'],
+    'blues': ['I–IV–I–I / IV–IV–I–I / V–IV–I–V'],
+    'worship': ['I–V–vi–IV', 'IV–I–V–vi'],
+    'folk': ['I–IV–V–I', 'I–V–vi–IV']
+}
+
+GENRE_TEMPO = {
+    'pop': (90, 120),
+    'country': (72, 108),
+    'rock': (100, 160),
+    'hip-hop': (75, 100),
+    'edm': (120, 132),
+    'r&b': (70, 95),
+    'jazz': (110, 180),
+    'blues': (60, 100),
+    'worship': (65, 85),
+    'folk': (80, 110)
+}
+
+RHYMES = [
+    ['fire', 'higher', 'wire', 'choir', 'desire'],
+    ['light', 'night', 'fight', 'bright', 'alright'],
+    ['time', 'rhyme', 'climb', 'sublime', 'shine'],
+    ['home', 'alone', 'stone', 'known', 'throne'],
+    ['rain', 'pain', 'again', 'remain', 'chain'],
+]
+
+STOPWORDS = set('the a an and or but if when then with into onto over under for from to in on at of by as be am are is was were been being this that those these my your our their his her its it we you they i me him her us them just only even still really very'.split())
+
+def pick_key(genre: str, mood: str) -> str:
+    if genre in ('hip-hop', 'edm', 'r&b') or mood in ('melancholic', 'dark', 'reflective'):
+        return random.choice(KEYS_MINOR)
+    return random.choice(KEYS_MAJOR)
+
+def pick_bpm(genre: str) -> int:
+    lo, hi = GENRE_TEMPO.get(genre, (90, 120))
+    return random.randint(lo, hi)
+
+def roman_string_to_chords(roman_prog: str, key: str) -> list[str]:
+    parts = [p.strip() for p in re.split(r'[–\-\s/]+', roman_prog) if p.strip()]
+    chords = [roman_to_chord(p, key) for p in parts]
+    return chords
+
+def extract_keywords(prompt: str, k: int = 8) -> list[str]:
+    words = [re.sub(r"[^a-zA-Z']", '', w).lower() for w in prompt.split()]
+    words = [w for w in words if w and w not in STOPWORDS and len(w) > 2]
+    # simple frequency-based top-k
+    freq: Dict[str, int] = {}
+    for w in words:
+        freq[w] = freq.get(w, 0) + 1
+    ranked = sorted(freq.items(), key=lambda x: (-x[1], -len(x[0])))
+    return [w for w, _ in ranked[:k]] or (words[:k] if words else [])
+
+def make_rhymed_lines(base_words: list[str], scheme: str, lines: int) -> list[str]:
+    # Build rhyme pools
+    pool = random.choice(RHYMES)
+    def rhyme_word(i):
+        return pool[i % len(pool)]
+    # Rotate through keywords
+    kw = base_words or ['love', 'road', 'dream', 'fire']
+    lines_out = []
+    scheme = scheme.upper()
+    labels = []
+    if scheme == 'AABB':
+        labels = ['A','A','B','B']
+    elif scheme == 'ABAB':
+        labels = ['A','B','A','B']
+    elif scheme == 'ABCB':
+        labels = ['A','B','C','B']
+    else:
+        labels = ['F','F','F','F']
+    for i in range(lines):
+        word = kw[i % len(kw)]
+        label = labels[i % len(labels)]
+        end = rhyme_word(i if label != 'B' else i+1) if label in ('A','B','C') else random.choice(random.choice(RHYMES))
+        prefix = random.choice([
+            'I remember', 'We wander', 'I’m chasing', 'Under neon', 'Through the static', 'On the backroads',
+            'In the midnight', 'You told me', 'I promised', 'They whispered'
+        ])
+        mid = random.choice([
+            'the {w} we carry', 'a {w} that lingers', 'the echoes of {w}', '{w} and thunder', 'sweet {w} turning'
+        ]).format(w=word)
+        adorn = random.choice([
+            'like it’s meant to be', 'til the morning light', 'in a silver line', 'on a borrowed time', 'with a restless mind'
+        ])
+        lines_out.append(f"{prefix}, {mid}, {adorn} — {end}")
+    return lines_out
+
+def structure_for(genre: str, structure: str | None) -> list[str]:
+    if structure:
+        s = structure.lower()
+        if 'hip' in s:
+            return ['Intro','Verse 1','Hook','Verse 2','Bridge','Hook','Outro']
+        if 'worship' in s:
+            return ['Intro','Verse 1','Chorus','Verse 2','Bridge','Chorus','Outro']
+        if 'folk' in s or 'ballad' in s:
+            return ['Verse 1','Verse 2','Chorus','Verse 3','Bridge','Chorus']
+    # defaults
+    if genre in ('hip-hop','r&b'):
+        return ['Intro','Verse 1','Hook','Verse 2','Bridge','Hook','Outro']
+    return ['Intro','Verse 1','Pre-Chorus','Chorus','Verse 2','Bridge','Chorus','Outro']
+
+@app.post('/api/songwriter')
+async def api_songwriter(
+    prompt: str = Form(...),
+    genre: str = Form('pop'),
+    mood: str = Form('uplifting'),
+    perspective: str = Form('first-person'),
+    rhyme: str = Form('AABB'),
+    complexity: str = Form('medium'),
+    structure: str = Form('default')
+):
+    g = genre.lower().strip()
+    key = pick_key(g, mood.lower().strip())
+    bpm = pick_bpm(g)
+    sections = structure_for(g, structure if structure != 'default' else None)
+    # choose progression per section
+    roman_choices = GENRE_PROGRESSIONS.get(g, GENRE_PROGRESSIONS['pop'])
+    base_prog = random.choice(roman_choices)
+    chords_by_section: Dict[str, list[str]] = {}
+    for sec in sections:
+        prog = base_prog
+        # Light variation
+        if any(x in sec.lower() for x in ('bridge','outro')) and len(roman_choices) > 1:
+            prog = roman_choices[1]
+        chords_by_section[sec] = roman_string_to_chords(prog, key)
+    # Title
+    kws = extract_keywords(prompt, k=6)
+    title_core = (kws[0] if kws else 'Redemption')
+    title = ' '.join([w.capitalize() for w in (random.choice([
+        f"{title_core} Road", f"{title_core} Sky", f"{title_core} Fire", f"{title_core} Light", title_core
+    ]).split())])
+    # Lines per section based on complexity
+    lines_map = {'simple': 3, 'medium': 4, 'advanced': 6}
+    n_lines = lines_map.get(complexity.lower(), 4)
+    lyrics: Dict[str, list[str]] = {}
+    for sec in sections:
+        if 'intro' in sec.lower() or 'outro' in sec.lower():
+            lyrics[sec] = [random.choice([
+                'Instrumental motif', 'Vocalise hook (oohs/ahs)', 'Reprise of chorus tagline'
+            ])]
+            continue
+        base_words = kws
+        sec_scheme = rhyme if 'chorus' not in sec.lower() and 'hook' not in sec.lower() else 'ABAB'
+        lines = make_rhymed_lines(base_words, sec_scheme, n_lines)
+        # perspective tweaks
+        if perspective.startswith('second'):
+            lines = [re.sub(r'\bI\b', 'you', ln, flags=re.I) for ln in lines]
+        elif perspective.startswith('third'):
+            lines = [re.sub(r'\bI\b', 'they', ln, flags=re.I) for ln in lines]
+        # chorus/hook tag line
+        if 'chorus' in sec.lower() or 'hook' in sec.lower():
+            tagline = ' '.join(random.sample(kws, min(3, len(kws)))) if kws else 'hold on to the light'
+            lines.append(f"{tagline.capitalize()} — this is where we rise")
+        lyrics[sec] = lines
+    # Description
+    description = f"{mood.capitalize()} {genre} song about " + (', '.join(kws[:3]) if kws else 'resilience and love')
+    # Flatten lyrics for convenience
+    plain_lyrics = []
+    for sec in sections:
+        plain_lyrics.append(f"[{sec}]")
+        for ln in lyrics[sec]:
+            plain_lyrics.append(ln)
+        plain_lyrics.append('')
+    payload = {
+        'title': title,
+        'genre': genre,
+        'mood': mood,
+        'perspective': perspective,
+        'key': key,
+        'bpm': bpm,
+        'rhyme': rhyme,
+        'complexity': complexity,
+        'structure': sections,
+        'chords': chords_by_section,
+        'lyrics': lyrics,
+        'description': description,
+        'plain_text': '\n'.join(plain_lyrics)
+    }
+    return payload

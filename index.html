@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOTA Professional Music & Video Production Suite</title>
     <script src="config.js"></script>
+    <script src="./composer-shim.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
         
@@ -463,6 +464,26 @@
             </div>
         </div>
 
+        <!-- SOTA Songwriter -->
+        <div class="component-card">
+            <div class="component-icon">🎼</div>
+            <h2 class="component-title">SOTA Songwriter</h2>
+            <p class="component-description">
+                Turn your story or prompts into award‑winning songs across genres. Generates structured lyrics and chord suggestions with genre‑correct progressions.
+            </p>
+            <ul class="component-features">
+                <li>Genre-aware song structure</li>
+                <li>Rhyme-scheme controlled lyrics</li>
+                <li>Chord progressions per section</li>
+                <li>Key and BPM suggestions</li>
+                <li>One-click send to Synthesizer</li>
+            </ul>
+            <div class="component-actions">
+                <a href="SOTA_Songwriter.html" class="action-btn primary">Open Songwriter</a>
+                <a href="HOW_TO_USE.md" class="action-btn secondary" target="_blank">Docs</a>
+            </div>
+        </div>
+
         <!-- Titan7 DAW -->
         <div class="component-card">
             <div class="component-icon">🎛️</div>
@@ -520,6 +541,26 @@
             <div class="component-actions">
                 <a href="SOTA_Music_Video_Generator.html" class="action-btn primary">Create Video</a>
                 <button class="action-btn secondary" onclick="showLicensing('video')">View License</button>
+            </div>
+        </div>
+
+        <!-- SI Swarm Video Generator (Client-side) -->
+        <div class="component-card">
+            <div class="component-icon">⚡</div>
+            <h2 class="component-title">SI Swarm Video Generator</h2>
+            <p class="component-description">
+                Multi-layer swarm intelligence video generator with music and marketing modes. Runs fully in your browser—no GPU, no server.
+            </p>
+            <ul class="component-features">
+                <li>Background / Foreground / Effects / Text swarms</li>
+                <li>Audio-reactive (bass/mid/high/beat)</li>
+                <li>Cinematic, Energetic, Minimal styles</li>
+                <li>Marketing text overlays with CTA</li>
+                <li>Instant preview</li>
+            </ul>
+            <div class="component-actions">
+                <a href="SIVideoGenerator.html" class="action-btn primary">Open SI Generator</a>
+                <a href="#licensing" class="action-btn secondary">License</a>
             </div>
         </div>
 
@@ -840,27 +881,39 @@
         });
         
         // 🔒 COPYRIGHT PROTECTION
+        // Allow copy/paste/select for inputs and textareas (lyrics, descriptions)
         document.addEventListener('contextmenu', (e) => {
+            const t = e.target;
+            if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && /text|search|email|url|password/.test(t.type)))) {
+                return; // allow
+            }
             e.preventDefault();
-            alert('🔒 Content Protected\n\nThis content is strictly copyrighted. Right-click disabled to prevent unauthorized copying.');
         });
-        
+
         document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && (e.key === 's' || e.key === 'a' || e.key === 'c' || e.key === 'v' || e.key === 'u')) {
+            const t = e.target;
+            const inField = t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && /text|search|email|url|password/.test(t.type)));
+            if (!inField && e.ctrlKey && (e.key === 's' || e.key === 'a' || e.key === 'c' || e.key === 'v' || e.key === 'u')) {
                 e.preventDefault();
-                alert('🔒 Action Disabled\n\nThis action is disabled to protect copyrighted content.');
             }
         });
-        
-        // Disable text selection
-        document.onselectstart = function() {
-            return false;
-        };
-        
-        // Disable drag
-        document.ondragstart = function() {
-            return false;
-        };
+
+        // Only disable selection/drag outside of editable fields
+        document.addEventListener('selectstart', (e) => {
+            const t = e.target;
+            if (t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && /text|search|email|url|password/.test(t.type)))) {
+                return; // allow selecting text in editors
+            }
+            e.preventDefault();
+        });
+
+        document.addEventListener('dragstart', (e) => {
+            const t = e.target;
+            if (t && (t.tagName === 'TEXTAREA' || t.isContentEditable || (t.tagName === 'INPUT' && /text|search|email|url|password/.test(t.type)))) {
+                return;
+            }
+            e.preventDefault();
+        });
         
         console.log('🎵 SOTA Professional Suite Loaded');
         console.log('🔒 All content is strictly copyrighted and licensed');

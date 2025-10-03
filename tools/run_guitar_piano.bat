@@ -2,7 +2,7 @@
 setlocal enableextensions
 
 REM One-click: Guitar vs Piano cross-compare (melodic)
-set BASE=https://redemptionrd.shop
+set BASE=http://127.0.0.1:8000
 set REF="C:\Users\flana\Downloads\SOTA SYNTH\Guitar"
 set CAND="C:\Users\flana\Downloads\SOTA SYNTH\Piano"
 set OUT="tools\results\guitar_piano.csv"
@@ -15,4 +15,3 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo Done. Results: %OUT%
-pause

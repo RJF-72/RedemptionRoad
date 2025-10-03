@@ -1,5 +1,96 @@
 import os
 import math
+from typing import Optional
+
+import numpy as np
+from moviepy.editor import AudioFileClip, VideoClip
+
+
+def _palette_weights(palette: str) -> tuple[float, float, float]:
+    p = (palette or "").lower()
+    if "warm" in p:
+        return (1.0, 0.85, 0.65)
+    if "cool" in p or "blue" in p:
+        return (0.65, 0.85, 1.0)
+    if "neon" in p or "vapor" in p:
+        return (1.1, 1.1, 1.1)
+    if "mono" in p or "bw" in p:
+        return (0.9, 0.9, 0.9)
+    return (1.0, 1.0, 1.0)
+
+
+def build_music_video(
+    audio_path: str,
+    genre: str,
+    style: str,
+    palette: str,
+    seed: Optional[int] = None,
+    work_dir: Optional[str] = None,
+) -> str:
+    """
+    CPU-only abstract visualizer that pairs the provided audio with a lightweight
+    animated background. Avoids external dependencies (like ImageMagick).
+
+    Returns: absolute path to the generated mp4 file.
+    """
+    work_dir = work_dir or os.path.dirname(os.path.abspath(audio_path))
+    os.makedirs(work_dir, exist_ok=True)
+    out_path = os.path.join(work_dir, "music_video.mp4")
+
+    # Load audio to infer duration
+    audio = AudioFileClip(audio_path)
+    duration = max(1.0, float(audio.duration or 1.0))
+
+    # Visual params
+    W, H = 1280, 720
+    fps = 24
+    rw, gw, bw = _palette_weights(palette)
+    phase_base = float((seed or 0) % 997) / 997.0
+    speed = 0.10 if "slow" in (style or "").lower() else 0.18
+
+    # Precompute grids for efficiency
+    x = np.linspace(0.0, 1.0, W, dtype=np.float32)[None, :]
+    y = np.linspace(0.0, 1.0, H, dtype=np.float32)[:, None]
+
+    def make_frame(t: float) -> np.ndarray:
+        # Smooth phase over time
+        ph = phase_base + speed * t
+        # Multi-axial sines for organic motion
+        r = 0.5 + 0.5 * np.sin(2 * np.pi * (x + 0.75 * y + ph))
+        g = 0.5 + 0.5 * np.sin(2 * np.pi * (0.8 * x - 0.6 * y + ph + 0.33))
+        b = 0.5 + 0.5 * np.sin(2 * np.pi * (0.5 * x + 0.9 * y - ph + 0.66))
+
+        # Apply palette weighting and gentle vignette
+        vignette = 0.85 + 0.15 * (
+            np.sin(np.pi * (x - 0.5)) ** 2 + np.sin(np.pi * (y - 0.5)) ** 2
+        )
+        R = np.clip(r * rw * vignette, 0.0, 1.0)
+        G = np.clip(g * gw * vignette, 0.0, 1.0)
+        B = np.clip(b * bw * vignette, 0.0, 1.0)
+        frame = np.dstack((R, G, B))
+        return (frame * 255).astype(np.uint8)
+
+    clip = VideoClip(make_frame, duration=duration)
+    clip = clip.set_audio(audio).set_fps(fps)
+
+    # Write using the imageio-ffmpeg binary bundled via imageio_ffmpeg
+    clip.write_videofile(
+        out_path,
+        codec="libx264",
+        audio_codec="aac",
+        fps=fps,
+        bitrate="3000k",
+        preset="medium",
+        threads=2,
+        verbose=False,
+        logger=None,
+    )
+
+    audio.close()
+    clip.close()
+    return os.path.abspath(out_path)
+import os
+import math
 import tempfile
 from typing import List, Optional
 from pydub import AudioSegment
