@@ -35,10 +35,3 @@ Social Media/__pycache__/
 Social Media/.env
 Social Media/.env.*
 
-# Audio cache and exports
-*.wav
-*.mp3
-*.aiff
-*.flac
-*.ogg
-*.webm
