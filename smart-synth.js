@@ -1,5 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, Music, Brain, Zap, Activity, Play, Save, Settings, Square, Volume2, Metronome, Trash2 } from 'lucide-react';
+// Use global React from the host page (loaded via CDN)
+const React = (typeof window !== 'undefined' && window.React) ? window.React : null;
+const { useState, useRef, useEffect, useCallback } = React || {};
+// Lightweight inline icons for browser modules (avoid external deps)
+const Icon = ({ children, className }) => React.createElement('span', { className, style: { display: 'inline-block' } }, children);
+const Music = (p) => Icon({ ...p, children: '🎵' });
 
 const AdvancedComposer = () => {
   const [samples, setSamples] = useState({});
@@ -557,6 +561,19 @@ const AdvancedComposer = () => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files || []);
     handleFileUpload(files);
+  };
+
+  // Trigger hidden inputs for import
+  const triggerFilePicker = (acceptFolder = false) => {
+    const inp = acceptFolder ? folderInputRef.current : fileInputRef.current;
+    if (inp) inp.click();
+  };
+
+  const onFilePickerChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length) handleFileUpload(files);
+    // allow re-importing same selection
+    try { e.target.value = ''; } catch {}
   };
 
   const reclassifyInstruments = async () => {
@@ -1622,7 +1639,7 @@ const AdvancedComposer = () => {
 
   return (
     <div className="advanced-composer-root p-4">
-      <div className="grid gap-4">
+      <div className="grid gap-4" onDragOver={handleDragOver} onDrop={handleDrop}>
         <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4">
           <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><Music className="w-5 h-5"/> Song Parameters</h3>
           <div className="grid grid-cols-2 gap-2">
@@ -1638,6 +1655,31 @@ const AdvancedComposer = () => {
             <button onClick={exportComposition} className="bg-blue-600 p-2 rounded">Export JSON</button>
           </div>
         </div>
+
+        {/* Import Toolbar */}
+        <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 flex flex-wrap gap-2 items-center">
+          <div className="font-bold mr-2">Sample Library</div>
+          <button onClick={()=>triggerFilePicker(false)} className="bg-emerald-600 p-2 rounded">Import Files</button>
+          <button onClick={()=>triggerFilePicker(true)} className="bg-emerald-700 p-2 rounded">Import Folder (Recursive)</button>
+          <button onClick={clearAllSamples} className="bg-red-700 p-2 rounded">Clear All</button>
+          <button onClick={loadSamplesFromDB} className="bg-gray-700 p-2 rounded">Reload Stored</button>
+          <button onClick={reclassifyInstruments} disabled={isReclassifying} className="bg-indigo-700 p-2 rounded">{isReclassifying ? 'Reclassifying…' : 'Reclassify'}</button>
+          <div className="ml-auto text-sm text-gray-300">{dbStatus}</div>
+
+          {/* Hidden inputs */}
+          <input ref={fileInputRef} type="file" multiple accept="audio/*" onChange={onFilePickerChange} style={{ display: 'none' }} />
+          <input ref={folderInputRef} type="file" multiple webkitdirectory="" directory="" onChange={onFilePickerChange} style={{ display: 'none' }} />
+        </div>
+
+        {/* Import Summary */}
+        {showImportSummary && importSummary && (
+          <div className="bg-black/30 rounded p-3 text-sm text-gray-200">
+            <div className="font-bold mb-1">Import Summary</div>
+            <div>Imported: {importSummary.imported} / {importSummary.total}</div>
+            <div>Default MIDI used: {importSummary.defaultMidiUsed}</div>
+            <div>Errors: {importSummary.errors}</div>
+          </div>
+        )}
 
         <div className="bg-black/40 backdrop-blur-sm rounded-xl p-4 flex gap-2 items-center">
           <button onClick={()=>playComposition(0)} className="bg-green-600 p-2 rounded">Play Preview</button>
@@ -1708,6 +1750,28 @@ const AdvancedComposer = () => {
               generationLog.map((line, i) => (
                 <div key={i} className="mb-1">{line}</div>
               ))
+            )}
+          </div>
+        </div>
+
+        {/* Library Browser (compact) */}
+        <div className="mt-3 bg-gray-900 rounded p-3">
+          <div className="font-bold mb-2">Samples ({sampleMetadata.length})</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-64 overflow-y-auto">
+            {sampleMetadata.slice(0, 200).map((m) => (
+              <div key={m.id} className="bg-black/30 rounded p-2 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-gray-200 text-xs">{m.fileName}</div>
+                  <div className="text-[10px] text-gray-400">{m.instrument || 'unknown'} • MIDI {m.midi}</div>
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={()=>auditionSample(m.id)} className="bg-green-700 px-2 py-1 rounded text-xs">Play</button>
+                  <button onClick={()=>focusSample(m.id)} className="bg-cyan-700 px-2 py-1 rounded text-xs">Focus</button>
+                </div>
+              </div>
+            ))}
+            {sampleMetadata.length > 200 && (
+              <div className="text-xs text-gray-400">Showing first 200…</div>
             )}
           </div>
         </div>

@@ -360,3 +360,35 @@ Note: If you want the site at `www.redemptionrd.shop`, set the custom domain to 
 ### 5) Local testing and CPU-only
 
 - See `TESTING.md` for CPU-only backend settings and the synth/DAW self-test panel.
+
+---
+
+## SmartSynth: Import Consolidated Library
+
+Use `advanced-composer.html` to run SmartSynth in the browser.
+
+Steps:
+- Open `advanced-composer.html` in Chrome/Edge.
+- In the toolbar, click “Import Folder (Recursive)” and select `Consolidated/Instruments`.
+- Or drag the `Consolidated` folder onto the page.
+- The status line shows progress; the first 200 samples are listed for quick audition. Imported samples persist to IndexedDB.
+
+Notes:
+- Instrument/classification is inferred from filename/folders; audio heuristics fill gaps.
+- Missing pitch defaults to MIDI 60 (C4).
+- Use “Reclassify” any time for a fast re-guess.
+
+## Git LFS for Audio
+
+This repo uses Git LFS to track large audio files via `.gitattributes`.
+
+Windows cmd quickstart:
+1) Install Git LFS from https://git-lfs.com/
+2) Run once: `git lfs install`
+3) Commit and push as usual:
+	- `git add .gitattributes .gitignore`
+	- `git add .`
+	- `git commit -m "SmartSynth import UI + LFS; consolidated library"`
+	- `git push origin main`
+
+Heads-up: LFS has bandwidth/storage quotas on GitHub. For very large libraries consider storing audio elsewhere and keeping only code/manifests here.
