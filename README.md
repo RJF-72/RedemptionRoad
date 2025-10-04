@@ -283,7 +283,16 @@ This software and all associated content are protected by copyright law and inte
 
 ## 📤 Publish to GitHub & GitHub Pages (Windows)
 
-This project is static front-end with an optional Python backend. You can host the frontend on GitHub Pages and the backend separately (e.g., a small VM or your local machine during development).
+This project is a static front-end. The production backend ("brain") now lives in a separate repository and deployment.
+
+Backend has moved
+- Repository: https://github.com/flanard72-del/redemptionbrain
+- Deployment: RunPod GPU-backed service exposed at https://api.redemptionrd.shop
+- Frontend proxy: Netlify proxies /api/* → https://api.redemptionrd.shop (see `netlify.toml`)
+
+Local development options
+- Use the live backend by setting `window.SOTA_BACKEND_URL = 'https://api.redemptionrd.shop'` in `config.js` or add `?api=https://api.redemptionrd.shop` to the URL.
+- Or run a local copy of the brain repo and set `SOTA_BACKEND_URL` accordingly.
 
 ### 1) Push to GitHub
 
