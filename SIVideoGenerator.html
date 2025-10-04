@@ -21,6 +21,16 @@
     .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(103,232,249,.2),rgba(103,232,249,.1));color:#e6faff;cursor:pointer}
     canvas{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#000}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    /* Inline status + toasts */
+    .status-bar{position:sticky;top:0;z-index:1000;margin:0 0 8px;padding:10px 12px;border-bottom:1px solid rgba(103,232,249,.25);font-weight:700;border-radius:10px;background:rgba(6,182,212,.12);color:#67e8f9}
+    .status-warn{background:rgba(250,204,21,.12);color:#facc15}
+    .status-error{background:rgba(239,68,68,.12);color:#f87171}
+    .status-success{background:rgba(34,197,94,.12);color:#86efac}
+    .toast-container{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;z-index:1500}
+    .toast{background:rgba(0,0,0,.78);border:1px solid rgba(103,232,249,.35);color:#e6faff;padding:10px 14px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:360px}
+    .toast.warn{border-color:rgba(250,204,21,.45);color:#fde68a}
+    .toast.error{border-color:rgba(248,113,113,.45);color:#fecaca}
+    .toast.success{border-color:rgba(34,197,94,.45);color:#bbf7d0}
   </style>
 </head>
 <body>
@@ -29,11 +39,43 @@
     <span style="opacity:.6">/</span>
     <span>SI Swarm Video</span>
   </div></div>
-  <div id="root" class="wrap"></div>
+  <div class="wrap">
+    <div id="statusBar" class="status-bar" style="display:none"></div>
+    <div id="root"></div>
+  </div>
+  <div id="toastContainer" class="toast-container"></div>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script>
+    // Environment sanity check: if React CDN is unavailable, inform the user clearly
+    (function(){
+      try{
+        if (!(window.React && window.ReactDOM)){
+          var bar = document.getElementById('statusBar');
+          if (bar){
+            bar.className = 'status-bar status-error';
+            bar.textContent = 'React CDN not available. Connect to the internet or bundle React locally for Swarm Video.';
+            bar.style.display = 'block';
+          }
+        }
+      }catch(_){ }
+    })();
+  </script>
+  <script src="voice.js"></script>
+  <script>
     const {useState,useRef,useEffect} = React;
+    // Status/toast helpers
+    function setStatus(message, type='info', persist=false){
+      const bar = document.getElementById('statusBar'); if(!bar) return;
+      bar.className = 'status-bar' + (type==='info'?'':(' status-'+type));
+      bar.textContent = message; bar.style.display = 'block';
+      if(!persist){ clearTimeout(setStatus._t); setStatus._t = setTimeout(()=>{ bar.style.display='none'; }, 4000); }
+    }
+    function showToast(message, type='info', timeout=4000){
+      const cont=document.getElementById('toastContainer'); if(!cont) return;
+      const t=document.createElement('div'); t.className='toast'+(type==='info'?'':(' '+type)); t.textContent=message;
+      cont.appendChild(t); setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; }, timeout-300); setTimeout(()=>t.remove(), timeout);
+    }
     function App(){
       const [isGenerating,setIsGenerating]=useState(false);
       const [progress,setProgress]=useState(0);
@@ -45,6 +87,11 @@
       const [fps,setFps]=useState(30);
       const [isPlaying,setIsPlaying]=useState(false);
       const [isRecording,setIsRecording]=useState(false);
+      // Refs to avoid stale closures in RAF/recording loops
+      const isPlayingRef=useRef(false);
+      const isRecordingRef=useRef(false);
+      useEffect(()=>{ isPlayingRef.current = isPlaying; }, [isPlaying]);
+      useEffect(()=>{ isRecordingRef.current = isRecording; }, [isRecording]);
       const [downloadUrl,setDownloadUrl]=useState('');
       const canvasRef=useRef(null); const animRef=useRef(null);
       const audioCtxRef=useRef(null); const audioBufRef=useRef(null); const audioSrcRef=useRef(null);
@@ -81,38 +128,137 @@
         for(let i=0;i<feats.length;i++){ const on = onsetEnv[i]>thr?1:0.2; feats[i].onset=on; feats[i].tempo=bpm; feats[i].beatStrength=on; }
         return feats; }
 
-      async function generate(){ if(!audioFile) return; setIsGenerating(true); setProgress(0); setFrames([]); setDownloadUrl('');
-        try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); audioCtxRef.current=ctx; const ab=await audioFile.arrayBuffer(); const buf=await ctx.decodeAudioData(ab.slice(0)); audioBufRef.current=buf; const feats=analyze(buf); const swarm=new Swarm(cfg,mode); const fr=[]; const total=feats.length; for(let i=0;i<total;i++){ fr.push(swarm.frame(feats[i],i)); if(i%Math.ceil(total/100)===0) setProgress((i+1)/total*100); if(i%10===0) await new Promise(r=>setTimeout(r,0)); } setFrames(fr); play(fr,true); } catch(e){ console.error(e); alert('Error generating video'); } setIsGenerating(false); }
+      async function generate(){ if(!audioFile){ setStatus('⚠️ Please choose an audio file first','warn'); return; }
+        setIsGenerating(true); setProgress(0); setFrames([]); setDownloadUrl(''); setStatus('🚀 Generating swarm frames…','info');
+        try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); audioCtxRef.current=ctx; const ab=await audioFile.arrayBuffer(); const buf=await ctx.decodeAudioData(ab.slice(0)); audioBufRef.current=buf; const feats=analyze(buf); const swarm=new Swarm(cfg,mode); const fr=[]; const total=feats.length; for(let i=0;i<total;i++){ fr.push(swarm.frame(feats[i],i)); if(i%Math.ceil(total/100)===0){ const pct=((i+1)/total*100); setProgress(pct); if(pct%10<1) setStatus(`🧠 AI optimizing visuals… ${pct.toFixed(0)}%`,'info'); } if(i%10===0) await new Promise(r=>setTimeout(r,0)); } setFrames(fr); showToast('✅ Frames ready. Playing preview…','success'); play(fr,true); }
+        catch(e){ console.error(e); setStatus('❌ Generation failed: '+(e&&e.message?e.message:e),'error',true); showToast('Generation failed','error'); }
+        setIsGenerating(false);
+      }
 
-      function drawFrame(ctx,cvs,f,k,camZoom){ const {background:bg,foreground:fg,effects:ef} = f; // background gradient with subtle zoom
-        ctx.save(); ctx.translate(cvs.width/2,cvs.height/2); ctx.scale(camZoom,camZoom); ctx.translate(-cvs.width/2,-cvs.height/2);
-        const grad=ctx.createRadialGradient(cvs.width/2,cvs.height/2,0,cvs.width/2,cvs.height/2,cvs.width*.8);
-        grad.addColorStop(0,`hsl(${bg.hue},${bg.saturation}%,${bg.brightness}%)`);
-        grad.addColorStop(1,`hsl(${(bg.hue+30)%360},${bg.saturation*.8}%,${bg.brightness*.25}%)`);
+      function drawFrame(ctx,cvs,f,k,camZoom){
+        const {background:bg,foreground:fg,effects:ef} = f;
+        // 1) Motion trails: gently fade previous frame
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+
+        // 2) Background gradient with slight transparency and camera zoom
+        ctx.save();
+        ctx.translate(cvs.width/2,cvs.height/2); ctx.scale(camZoom,camZoom); ctx.translate(-cvs.width/2,-cvs.height/2);
+        const grad=ctx.createRadialGradient(cvs.width/2,cvs.height/2,0,cvs.width/2,cvs.height/2,cvs.width*.85);
+        grad.addColorStop(0,`hsla(${bg.hue},${bg.saturation}%,${bg.brightness}%,0.9)`);
+        grad.addColorStop(1,`hsla(${(bg.hue+30)%360},${bg.saturation*.8}%,${bg.brightness*.22}%,0.9)`);
+        ctx.globalAlpha = 0.35; // allow trails to show through
         ctx.fillStyle=grad; ctx.fillRect(0,0,cvs.width,cvs.height);
-        // effects particles with glow
-        const pc=Math.floor(25+ef.motion*35); ctx.globalCompositeOperation='lighter';
-        for(let i=0;i<pc;i++){ const ang=i/pc*Math.PI*2 + k*.05; const r=ef.motion*50 + bg.depth*120; const x=cvs.width/2+Math.cos(ang)*r; const y=cvs.height/2+Math.sin(ang)*r; const size=ef.scale*8 + f.audio.bass*12; ctx.fillStyle=`hsla(${(ef.hue+i*12)%360},${ef.saturation}%,${ef.brightness}%,${.25+ef.complexity*.5})`; ctx.beginPath(); ctx.arc(x,y,size,0,Math.PI*2); ctx.fill(); }
-        ctx.globalCompositeOperation='source-over';
-        // foreground polygon with stroke + fill
-        ctx.save(); ctx.translate(cvs.width/2,cvs.height/2); ctx.rotate(fg.rotation*Math.PI/180);
-        const size=120+fg.scale*90; const sides=f.audio.energy>0.5?6:4; ctx.beginPath(); for(let i=0;i<sides;i++){ const a=i/sides*Math.PI*2; const x=Math.cos(a)*size; const y=Math.sin(a)*size; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);} ctx.closePath();
-        ctx.strokeStyle=`hsla(${fg.hue},${fg.saturation}%,${fg.brightness}%,0.9)`; ctx.lineWidth=3+f.audio.high*6; ctx.stroke(); ctx.fillStyle=`hsla(${fg.hue},${fg.saturation}%,${fg.brightness}%,${0.12+fg.complexity*.28})`; ctx.fill(); ctx.restore();
-        // vignette
-        const vg=ctx.createRadialGradient(cvs.width/2,cvs.height/2,Math.min(cvs.width,cvs.height)*.4,cvs.width/2,cvs.height/2,Math.max(cvs.width,cvs.height)*.7);
+        ctx.globalAlpha = 1;
+
+        // 3) Radial energy rays (beat + highs)
+        const rayCount = 18 + Math.floor(ef.complexity*18);
+        ctx.save();
+        ctx.translate(cvs.width/2, cvs.height/2);
+        ctx.rotate((fg.rotation*Math.PI/180) * 0.15);
+        for(let i=0;i<rayCount;i++){
+          const a = (i/rayCount)*Math.PI*2 + k*0.01;
+          const len = (Math.min(cvs.width,cvs.height)*0.35) * (0.6 + f.audio.high*0.8);
+          const x = Math.cos(a)*len, y=Math.sin(a)*len;
+          ctx.beginPath();
+          ctx.moveTo(0,0); ctx.lineTo(x,y);
+          ctx.strokeStyle = `hsla(${(bg.hue + i*6)%360}, ${Math.min(100, bg.saturation+10)}%, ${Math.min(100, bg.brightness+10)}%, ${0.06 + f.audio.high*0.18})`;
+          ctx.lineWidth = 1.5 + f.audio.high*2.5;
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 4) Effects particles (layered shapes + glow)
+        const pc=Math.floor(20+ef.motion*40);
+        ctx.globalCompositeOperation='lighter';
+        for(let i=0;i<pc;i++){
+          const ang=i/pc*Math.PI*2 + k*.045;
+          const r=ef.motion*60 + bg.depth*140 + Math.sin(k*0.02 + i)*10;
+          const x=cvs.width/2+Math.cos(ang)*r;
+          const y=cvs.height/2+Math.sin(ang)*r;
+          const size=ef.scale*6 + f.audio.bass*10;
+          const hue=(ef.hue+i*9+k*0.03)%360;
+          ctx.shadowBlur = 12 + f.audio.high*18;
+          ctx.shadowColor = `hsla(${hue},${ef.saturation}%,70%,0.8)`;
+          ctx.fillStyle=`hsla(${hue},${ef.saturation}%,${ef.brightness}%,${.18+ef.complexity*.4})`;
+          // alternate shapes
+          if (i%3===0){ ctx.beginPath(); ctx.arc(x,y,size,0,Math.PI*2); ctx.fill(); }
+          else if (i%3===1){ ctx.beginPath(); ctx.rect(x-size*0.6,y-size*0.6,size*1.2,size*1.2); ctx.fill(); }
+          else {
+            ctx.beginPath();
+            ctx.moveTo(x, y-size);
+            ctx.lineTo(x+size*0.86, y+size*0.5);
+            ctx.lineTo(x-size*0.86, y+size*0.5);
+            ctx.closePath(); ctx.fill();
+          }
+        }
+        ctx.shadowBlur = 0; ctx.globalCompositeOperation='source-over';
+
+        // 5) Foreground star/gear polygon with neon stroke
+        ctx.save();
+        ctx.translate(cvs.width/2,cvs.height/2); ctx.rotate(fg.rotation*Math.PI/180);
+        const base=120+fg.scale*90;
+        const sides = f.audio.energy>0.55? 7 : (f.audio.high>0.45? 6 : 5);
+        const inner = base* (0.45 + 0.2*Math.sin(k*0.03 + f.audio.mid));
+        ctx.beginPath();
+        for(let i=0;i<sides*2;i++){
+          const rad = (i%2===0) ? base : inner;
+          const a = (i/(sides*2))*Math.PI*2;
+          const x=Math.cos(a)*rad, y=Math.sin(a)*rad;
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.closePath();
+        ctx.lineWidth = 3 + f.audio.high*6;
+        ctx.strokeStyle=`hsla(${fg.hue},${fg.saturation}%,${Math.min(95, fg.brightness+10)}%,0.95)`;
+        ctx.shadowColor = `hsla(${fg.hue},${fg.saturation}%,70%,0.9)`; ctx.shadowBlur = 18 + f.audio.high*24;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle=`hsla(${fg.hue},${fg.saturation}%,${fg.brightness}%,${0.10+fg.complexity*.22})`;
+        ctx.fill();
+        ctx.restore();
+
+        // 6) Beat-synced ribbon arcs
+        if (f.audio.onset>0.6){
+          ctx.save(); ctx.translate(cvs.width/2,cvs.height/2);
+          const arcs = 3;
+          for(let i=0;i<arcs;i++){
+            ctx.beginPath();
+            const r = base + 40 + i*22 + f.audio.bass*30;
+            ctx.strokeStyle = `hsla(${(bg.hue+ i*20)%360}, 80%, 70%, 0.35)`;
+            ctx.lineWidth = 2 + f.audio.high*3;
+            ctx.arc(0,0,r, Math.PI*0.1 + i*0.2, Math.PI*1.9 - i*0.2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // 7) Subtle scanlines overlay
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = '#000';
+        for(let y=0;y<cvs.height;y+=2){ ctx.fillRect(0,y,cvs.width,1); }
+        ctx.restore();
+
+        // 8) Vignette
+        const vg=ctx.createRadialGradient(cvs.width/2,cvs.height/2,Math.min(cvs.width,cvs.height)*.45,cvs.width/2,cvs.height/2,Math.max(cvs.width,cvs.height)*.8);
         vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.35)'); ctx.fillStyle=vg; ctx.fillRect(0,0,cvs.width,cvs.height);
         ctx.restore();
       }
 
-      function play(fr,withAudio){ const cvs=canvasRef.current; if(!cvs||!fr.length) return; const ctx=cvs.getContext('2d');
+      function play(fr,withAudio){ const cvs=canvasRef.current; if(!cvs||!fr.length){ setStatus('⚠️ No frames to play','warn'); return; } const ctx=cvs.getContext('2d');
         // start audio
         if(withAudio && audioBufRef.current){ try{ if(audioSrcRef.current){ audioSrcRef.current.stop(); } const src=audioCtxRef.current.createBufferSource(); src.buffer=audioBufRef.current; src.connect(audioCtxRef.current.destination); audioSrcRef.current=src; src.start(); }catch(e){ console.warn('Audio start failed',e);} }
-        startTimeRef.current=performance.now(); setIsPlaying(true);
-        const step=()=>{ if(!isPlaying) return; const now=performance.now(); const elapsed=(now-startTimeRef.current)/1000; const idx=Math.min(fr.length-1, Math.floor(elapsed*fps)); const f=fr[idx];
+        startTimeRef.current=performance.now(); setIsPlaying(true); isPlayingRef.current=true;
+        const step=()=>{ if(!isPlayingRef.current) return; const now=performance.now(); const elapsed=(now-startTimeRef.current)/1000; const idx=Math.min(fr.length-1, Math.floor(elapsed*fps)); const f=fr[idx];
           // camera zoom pulses on onsets
           const camZoom = 1 + (f.audio.onset>0.5?0.04:0.01) + f.audio.energy*0.05;
-          ctx.clearRect(0,0,cvs.width,cvs.height);
           drawFrame(ctx,cvs,f,idx,camZoom);
+          // White flash on strong onsets for punch
+          if (f.audio.onset>0.85){
+            ctx.save(); ctx.globalAlpha = 0.06 + f.audio.onset*0.08; ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cvs.width,cvs.height); ctx.restore();
+          }
           // marketing text overlay
           if(mode==='marketing'){
             ctx.save(); ctx.font=`800 ${40 + f.audio.beatStrength*10}px Inter, Arial`; ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12; ctx.fillText(text.headline,cvs.width/2,cvs.height*.28);
@@ -120,12 +266,12 @@
             const s=1+f.audio.beatStrength*.2; ctx.font=`800 ${Math.floor(28*s)}px Inter, Arial`; ctx.fillStyle='rgba(103,232,249,0.95)'; ctx.fillText(text.cta,cvs.width/2,cvs.height*.78);
             ctx.restore();
           }
-          if(idx<fr.length-1){ animRef.current=requestAnimationFrame(step);} else { setIsPlaying(false); }
+          if(idx<fr.length-1){ animRef.current=requestAnimationFrame(step);} else { setIsPlaying(false); isPlayingRef.current=false; setStatus('✅ Preview ended','success'); }
         };
         animRef.current=requestAnimationFrame(step);
       }
 
-      async function recordVideo(){ if(isRecording||!frames.length) return; setIsRecording(true); setDownloadUrl('');
+      async function recordVideo(){ if(isRecording||!frames.length){ if(!frames.length) setStatus('⚠️ Generate frames before recording','warn'); return; } setIsRecording(true); isRecordingRef.current=true; setDownloadUrl(''); setStatus('💾 Recording WebM…','info');
         try{ const cvs=canvasRef.current; const stream=cvs.captureStream(fps); // add audio if available
           if(audioBufRef.current && audioCtxRef.current){ const dest=audioCtxRef.current.createMediaStreamDestination();
             // play audio again to feed recorder
@@ -133,18 +279,23 @@
             const src=audioCtxRef.current.createBufferSource(); src.buffer=audioBufRef.current; src.connect(audioCtxRef.current.destination); src.connect(dest); audioSrcRef.current=src; src.start();
             dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
           }
-          const mr=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'}); mediaRecRef.current=mr; mediaChunksRef.current=[];
+          const chosenMime = (window.MediaRecorder && MediaRecorder.isTypeSupported && (
+              MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' :
+              (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm')
+            )) || 'video/webm';
+            const mr=new MediaRecorder(stream,{mimeType: chosenMime}); mediaRecRef.current=mr; mediaChunksRef.current=[];
           mr.ondataavailable=e=>{ if(e.data && e.data.size>0) mediaChunksRef.current.push(e.data); };
-          mr.onstop=()=>{ const blob=new Blob(mediaChunksRef.current,{type:'video/webm'}); const url=URL.createObjectURL(blob); setDownloadUrl(url); setIsRecording(false); };
+          mr.onstop=()=>{ const blob=new Blob(mediaChunksRef.current,{type:'video/webm'}); const url=URL.createObjectURL(blob); setDownloadUrl(url); setIsRecording(false); isRecordingRef.current=false; showToast('✅ Export ready','success'); };
+          mr.onstop=()=>{ const blob=new Blob(mediaChunksRef.current,{type:chosenMime.split(';')[0]||'video/webm'}); const url=URL.createObjectURL(blob); try{ if(downloadUrl) URL.revokeObjectURL(downloadUrl); }catch(_){} setDownloadUrl(url); setIsRecording(false); isRecordingRef.current=false; showToast('✅ Export ready','success'); };
           mr.start();
           // draw frames in time
-          setIsPlaying(true); startTimeRef.current=performance.now();
+          setIsPlaying(true); isPlayingRef.current=true; startTimeRef.current=performance.now();
           const ctx=cvs.getContext('2d'); const totalDurSec=frames.length/fps; const endAt=performance.now()+totalDurSec*1000;
-          const loop=()=>{ if(!isRecording) return; const now=performance.now(); const elapsed=(now-startTimeRef.current)/1000; const idx=Math.min(frames.length-1, Math.floor(elapsed*fps)); const f=frames[idx]; const camZoom=1 + (f.audio.onset>0.5?0.04:0.01) + f.audio.energy*0.05; ctx.clearRect(0,0,cvs.width,cvs.height); drawFrame(ctx,cvs,f,idx,camZoom); if(mode==='marketing'){ ctx.save(); ctx.font=`800 ${40 + f.audio.beatStrength*10}px Inter, Arial`; ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12; ctx.fillText(text.headline,cvs.width/2,cvs.height*.28); ctx.font='600 24px Inter, Arial'; ctx.fillStyle='rgba(230,240,255,0.9)'; ctx.fillText(text.subtext,cvs.width/2,cvs.height*.42); const s=1+f.audio.beatStrength*.2; ctx.font=`800 ${Math.floor(28*s)}px Inter, Arial`; ctx.fillStyle='rgba(103,232,249,0.95)'; ctx.fillText(text.cta,cvs.width/2,cvs.height*.78); ctx.restore(); }
+          const loop=()=>{ if(!isRecordingRef.current) return; const now=performance.now(); const elapsed=(now-startTimeRef.current)/1000; const idx=Math.min(frames.length-1, Math.floor(elapsed*fps)); const f=frames[idx]; const camZoom=1 + (f.audio.onset>0.5?0.04:0.01) + f.audio.energy*0.05; drawFrame(ctx,cvs,f,idx,camZoom); if (f.audio.onset>0.85){ ctx.save(); ctx.globalAlpha=0.06+f.audio.onset*0.08; ctx.fillStyle='#fff'; ctx.fillRect(0,0,cvs.width,cvs.height); ctx.restore(); } if(mode==='marketing'){ ctx.save(); ctx.font=`800 ${40 + f.audio.beatStrength*10}px Inter, Arial`; ctx.fillStyle='rgba(255,255,255,0.95)'; ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12; ctx.fillText(text.headline,cvs.width/2,cvs.height*.28); ctx.font='600 24px Inter, Arial'; ctx.fillStyle='rgba(230,240,255,0.9)'; ctx.fillText(text.subtext,cvs.width/2,cvs.height*.42); const s=1+f.audio.beatStrength*.2; ctx.font=`800 ${Math.floor(28*s)}px Inter, Arial`; ctx.fillStyle='rgba(103,232,249,0.95)'; ctx.fillText(text.cta,cvs.width/2,cvs.height*.78); ctx.restore(); }
             if(now<endAt){ requestAnimationFrame(loop);} else { mr.stop(); setIsPlaying(false); }
           };
           requestAnimationFrame(loop);
-        } catch(e){ console.error(e); alert('Recording failed'); setIsRecording(false); }
+        } catch(e){ console.error(e); setStatus('❌ Recording failed: '+(e&&e.message?e.message:e),'error',true); setIsRecording(false); isRecordingRef.current=false; }
       }
       useEffect(()=>()=>{ if(animRef.current) cancelAnimationFrame(animRef.current); },[]);
       return React.createElement('div',{},
@@ -213,6 +364,26 @@
       );
     }
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+  <script>
+    // Voice commands for SI Swarm Video (after app is defined)
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        if (window.SOTAVoice && SOTAVoice.registerCommands) {
+          SOTAVoice.registerCommands([
+            { pattern: /^upload (?:music|audio)$/i, description: 'Open audio upload', handler: () => {
+                const input = document.querySelector('input[type="file"][accept^="audio/"]'); input && input.click && input.click();
+              } },
+            { pattern: /^generate (?:video|frames)$/i, description: 'Start swarm generation', handler: () => {
+                const btns=[...document.querySelectorAll('button')]; const gen=btns.find(b=>/generate/i.test(b.textContent||'')); gen && gen.click();
+              } },
+            { pattern: /^(?:export|record) (?:video|webm)$/i, description: 'Export WebM', handler: () => {
+                const btns=[...document.querySelectorAll('button')]; const rec=btns.find(b=>/webm/i.test(b.textContent||'')); rec && rec.click();
+              } }
+          ]);
+        }
+      } catch(_){ }
+    });
   </script>
     <script src="./composer-shim.js"></script>
 </body>

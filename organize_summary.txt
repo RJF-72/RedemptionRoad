@@ -1,0 +1,27 @@
+﻿Root: c:\Users\flana\Downloads\SOTA SYNTH
+Inventory CSV: c:\Users\flana\Downloads\SOTA SYNTH\mp3_inventory.csv
+Total items indexed: 10191 (MP3s: 10191, Shortcuts: 0)
+Duplicate items flagged: 0
+Proposed deletions: 0
+Proposed moves: 0
+
+Top instruments:
+ - Guitar: 2639
+ - Piano: 896
+ - Bass: 885
+ - RealDrums: 592
+ - Playable: 533
+ - Holds: 525
+ - Style: 481
+ - Vocal: 424
+ - Accordion: 349
+ - Pedal: 337
+ - Sax: 214
+ - House: 208
+ - HipHop: 205
+ - Synth: 155
+ - Organ: 145
+
+Duplicate groups (first 20):
+
+Planned actions (dry-run by default):

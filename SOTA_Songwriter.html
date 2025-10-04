@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOTA Songwriter – AI Lyric & Structure Generator</title>
+  <script src="./config.js"></script>
+  <script src="./auth.js"></script>
+  <script src="./voice.js"></script>
+  <script src="./composer-shim.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+    :root{ --bg:#0b1220; --panel:rgba(0,212,255,0.06); --border:rgba(0,212,255,0.24); --text:#E6F3FF; --acc:#00E5FF; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'JetBrains Mono',monospace;background:radial-gradient(1200px 600px at 10% 10%, rgba(0,255,255,0.08), transparent 60%),radial-gradient(1200px 600px at 90% 0%, rgba(255,0,128,0.08), transparent 60%),radial-gradient(1000px 600px at 50% 100%, rgba(0,255,200,0.06), transparent 60%),var(--bg);color:var(--text);}
+    .wrap{max-width:1200px;margin:24px auto;padding:16px}
+    h1{color:#64ffda;text-shadow:0 0 12px rgba(100,255,218,.45);margin:0 0 12px}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:16px}
+    .card{background:linear-gradient(135deg, rgba(0,212,255,0.05), rgba(255,0,128,0.05));border:1px solid var(--border);border-radius:14px;padding:16px}
+    .label{color:var(--acc);font-weight:700;margin:10px 0 6px}
+    .input,.select,.textarea{width:100%;background:rgba(1,8,20,0.6);border:1px solid rgba(0,212,255,0.22);border-radius:10px;color:var(--text);padding:10px;font-family:'JetBrains Mono',monospace}
+    .textarea{min-height:380px;resize:vertical}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{background:linear-gradient(135deg,#00E5FF,#15B7FF);color:#001019;border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
+    .btn.secondary{background:transparent;color:#E6F3FF;border:1px solid var(--border)}
+    .hint{font-size:12px;color:#93c5fd}
+    .pill{border:1px solid rgba(0,212,255,0.28);padding:6px 8px;border-radius:999px;font-size:12px;cursor:pointer;color:#93c5fd}
+    .pill.active{background:linear-gradient(135deg,#FF1BB3,#8B5CF6);color:#000814;border-color:transparent}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🎼 Songwriter</h1>
+    <p class="hint">Tip: Say “generate song”, “set genre rock”, “set tempo 120”, “write chorus”, “copy lyrics”. Right-click the mic to see all voice commands.</p>
+    <details class="card" style="margin:10px 0;">
+      <summary style="cursor:pointer;font-weight:800;color:#00E5FF">Directions</summary>
+      <div class="hint" style="margin-top:8px;line-height:1.6">
+        • Set Genre, Mood, Tempo, Structure, then click Generate Lyrics. If the backend isn’t set, lyrics are created locally.<br/>
+        • Click “Generate Music” to play a real‑only accompaniment from your SmartSynth sample library. Import samples in Advanced Composer first.<br/>
+        • Use Copy or Export .txt to take lyrics elsewhere; “Send to DAW” stores the latest text in your browser for the DAW page.<br/>
+        • Configure backend API anytime via ⚙ API Settings or press Shift + A.
+      </div>
+    </details>
+    <div class="grid">
+      <section class="card">
+        <div class="label">Topic / Prompt</div>
+        <input id="prompt" class="input" placeholder="e.g., redemption on a rainy highway at 2am" />
+        <div class="label">Genre</div>
+        <div class="row" id="genreRow">
+          <span class="pill active" data-val="rock">Rock</span>
+          <span class="pill" data-val="country">Country</span>
+          <span class="pill" data-val="pop">Pop</span>
+          <span class="pill" data-val="hiphop">HipHop</span>
+          <span class="pill" data-val="blues">Blues</span>
+          <span class="pill" data-val="folk">Folk</span>
+        </div>
+        <div class="label">Mood</div>
+        <div class="row" id="moodRow">
+          <span class="pill active" data-val="uplifting">Uplifting</span>
+          <span class="pill" data-val="melancholic">Melancholic</span>
+          <span class="pill" data-val="dark">Dark</span>
+          <span class="pill" data-val="romantic">Romantic</span>
+          <span class="pill" data-val="epic">Epic</span>
+        </div>
+        <div class="row">
+          <div style="flex:1">
+            <div class="label">Tempo (BPM)</div>
+            <input id="tempo" class="input" type="number" min="40" max="220" value="120" />
+          </div>
+          <div style="flex:1">
+            <div class="label">Rhyme Scheme</div>
+            <select id="rhyme" class="select">
+              <option value="AABB">AABB</option>
+              <option value="ABAB" selected>ABAB</option>
+              <option value="ABCB">ABCB</option>
+              <option value="free">Free</option>
+            </select>
+          </div>
+        </div>
+        <div class="label">Structure</div>
+        <select id="structure" class="select">
+          <option value="verse-chorus-verse-chorus-bridge-chorus" selected>Verse–Chorus–Verse–Chorus–Bridge–Chorus</option>
+          <option value="aaba">AABA</option>
+          <option value="verse-verse-bridge-verse">Verse–Verse–Bridge–Verse</option>
+          <option value="freeform">Freeform</option>
+        </select>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="generateLyrics()">🚀 Generate Lyrics</button>
+          <button class="btn secondary" onclick="appendSection('verse')">+ Verse</button>
+          <button class="btn secondary" onclick="appendSection('chorus')">+ Chorus</button>
+          <button class="btn secondary" onclick="appendSection('bridge')">+ Bridge</button>
+          <button class="btn secondary" onclick="checkHealth()" title="Ping API health">🔎 Check API</button>
+          <button class="btn secondary" onclick="openApiSettings()" title="Configure API server">⚙ API Settings</button>
+        </div>
+      </section>
+      <section class="card">
+        <div class="label">Lyrics</div>
+        <textarea id="lyrics" class="textarea" placeholder="Your lyrics will appear here..."></textarea>
+        <div class="row" style="margin-top:10px; align-items:center;">
+          <button class="btn" onclick="copyLyrics()">📋 Copy</button>
+          <button class="btn secondary" onclick="exportTxt()">⬇ Export .txt</button>
+          <button class="btn secondary" onclick="sendToDAW()">🎛️ Send to DAW</button>
+          <button class="btn" id="musicBtn" onclick="toggleMusic()" title="Generate accompaniment from chords (real‑only via SmartSynth library)">🎵 Generate Music</button>
+          <span class="hint" id="songMeta"></span>
+        </div>
+        <div class="hint" id="status" style="margin-top:8px"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const BACKEND_URL = (typeof window !== 'undefined' && window.SOTA_BACKEND_URL !== undefined) ? window.SOTA_BACKEND_URL : '';
+    function apiBase(){
+      try { if (typeof window.SOTA_getBackend === 'function') { const b = SOTA_getBackend(); if (b) return b; } } catch(_){}
+      return BACKEND_URL || '';
+    }
+    function openApiSettings(){
+      try { if (typeof window.SOTA_openApiModal === 'function') { SOTA_openApiModal(); return; } } catch(_){}
+      // Fallback: hint the keyboard shortcut from the shim (Shift + A)
+      alert('Set API base: Press Shift + A to open the API settings, or set via URL ?api=http://host:port');
+    }
+
+    // Genre/Mood pills
+    function setupPills(rowId){
+      const row = document.getElementById(rowId);
+      row.addEventListener('click', (e)=>{
+        const pill = e.target.closest('.pill'); if(!pill) return;
+        row.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+        pill.classList.add('active');
+      });
+    }
+    setupPills('genreRow');
+    setupPills('moodRow');
+
+    function getSelected(rowId){
+      const el = document.querySelector('#'+rowId+' .pill.active');
+      return el ? el.getAttribute('data-val') : '';
+    }
+
+    function setStatus(msg){ const s=document.getElementById('status'); s.textContent = msg||''; }
+
+    // ===== Local/offline lyric generator =====
+    function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function buildRhymePairs(scheme){
+      const endsA = ['light','night','sky','high','fire','wire','road','home','again','rain'];
+      const endsB = ['time','line','find','side','stay','day','long','strong','true','blue'];
+      const endsC = ['soul','whole','start','heart','way','play','near','clear','more','door'];
+      const map = { A: pick(endsA), B: pick(endsB), C: pick(endsC) };
+      return (ch)=>{
+        if (ch==='A') return map.A; if (ch==='B') return map.B; if (ch==='C') return map.C; return pick([...endsA,...endsB,...endsC]);
+      };
+    }
+    function makeSectionLines(kind, prompt, mood){
+      const starts = {
+        verse:[`On ${prompt||'this open road'}, I keep on driving`,`I trace the lines where memories go`,`The world turns slow, but I’m still trying`,`I hear the wind say carry on`],
+        chorus:[`And I won’t break, I’ll hold on tighter`,`I lift my eyes into the night`,`This is the way I find my fire`,`I’m coming back to life tonight`],
+        bridge:[`If I fall I’ll rise again`,`Let the past fade out of sight`,`Every scar becomes a light`,`I’ll keep walking through the rain`]
+      };
+      const mids = [
+        `Shadows fade behind the mile`, `Echoes turning into guide`, `Every heartbeat finds a rhyme`, `Footsteps keeping steady time`
+      ];
+      const tones = {
+        uplifting:[`I won’t let go of brighter days`,`Hope is burning in my chest`],
+        melancholic:[`I hold the weight but keep on moving`,`Softly speaking to the dark`],
+        dark:[`Thunder rolling in the distance`,`Broken glass beneath the moon`],
+        romantic:[`Every breath calls out your name`,`Your light is written in my bones`],
+        epic:[`Mountains tremble at the call`,`Stars awaken, blaze the trail`]
+      };
+      return [pick(starts[kind]||starts.verse), pick(mids), pick((tones[mood]||tones.uplifting)), pick(mids)];
+    }
+    function chordsForGenre(genre){
+      const p = {
+        rock:[['I','V','vi','IV'],['I','IV','V','I']],
+        country:[['I','V','vi','IV'],['vi','IV','I','V']],
+        pop:[['I','V','vi','IV'],['I','V','IV','IV']],
+        hiphop:[['i','VI','III','VII']],
+        blues:[['I','IV','I','V','IV','I']],
+        folk:[['I','IV','V','I']]
+      };
+      return p[genre] || p.pop;
+    }
+    function romanToChord(roman, key='G', minor=false){
+      const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+      const scaleMajor = [0,2,4,5,7,9,11];
+      const scaleMinor = [0,2,3,5,7,8,10];
+      const isLower = roman===roman.toLowerCase();
+      const degree = { 'i':0,'ii':1,'iii':2,'iv':3,'v':4,'vi':5,'vii':6 }[roman.toLowerCase()] ?? 0;
+      const rootIdx = names.indexOf(key.replace('b','#').toUpperCase());
+      const scale = minor ? scaleMinor : scaleMajor;
+      const idx = (rootIdx + scale[degree])%12;
+      const root = names[idx];
+      return isLower ? root+'m' : root;
+    }
+    function buildLocalLyrics({prompt, genre, mood, tempo, rhyme, structure}){
+      const secOrder = structure==='aaba' ? ['verse','verse','bridge','verse'] : structure==='verse-verse-bridge-verse' ? ['verse','verse','bridge','verse'] : structure==='freeform' ? ['verse'] : ['verse','chorus','verse','chorus','bridge','chorus'];
+      const rhymeMap = { AABB:['A','A','B','B'], ABAB:['A','B','A','B'], ABCB:['A','B','C','B'], free:['A','B','C','A'] };
+      const rseq = rhymeMap[rhyme] || rhymeMap.ABAB;
+      const rhymePick = buildRhymePairs(rhyme==='free' ? 'ABCA' : rhyme);
+      const linesPer = 4;
+      const blocks = [];
+      const chordProgTemplates = chordsForGenre(genre);
+      const key = 'G';
+      const chordsPerSection = {};
+      let progIndex = 0;
+      for (const s of secOrder){
+        const lines = makeSectionLines(s, prompt, mood);
+        const outLines = [];
+        for (let i=0;i<linesPer;i++){
+          const tag = (rseq[i % rseq.length]||'A');
+          const end = rhymePick(tag);
+          const base = lines[i % lines.length];
+          outLines.push(base.replace(/[,\.!?]*$/, '') + ' ' + end);
+        }
+        blocks.push(`[${s.toUpperCase()}]`); blocks.push(...outLines); blocks.push('');
+        // chords meta
+        const template = chordProgTemplates[progIndex % chordProgTemplates.length];
+        progIndex++;
+        chordsPerSection[s] = template.map(r => romanToChord(r, key, false));
+      }
+      const text = blocks.join('\n').trim();
+      const meta = { title: (prompt? (prompt.split(' ').slice(0,4).map(x=>x[0].toUpperCase()+x.slice(1)).join(' ')) : 'Untitled'), genre, mood, key:'G', bpm: tempo, structure: secOrder.join('-'), chords: chordsPerSection };
+      return { text, meta };
+    }
+
+    async function generateLyrics(){
+      const prompt = document.getElementById('prompt').value.trim();
+      const genre = getSelected('genreRow') || 'rock';
+      const mood = getSelected('moodRow') || 'uplifting';
+      const tempo = parseInt(document.getElementById('tempo').value||'120');
+      const rhyme = document.getElementById('rhyme').value;
+      const structure = document.getElementById('structure').value;
+      const base = apiBase();
+      const out = document.getElementById('lyrics');
+      if (!base) {
+        // Local generation fallback
+        const { text, meta } = buildLocalLyrics({ prompt, genre, mood, tempo, rhyme, structure });
+        out.value = text;
+        localStorage.setItem('sota:songwriter:last', out.value);
+        localStorage.setItem('sota:songwriter:last-meta', JSON.stringify(meta));
+        const metaEl = document.getElementById('songMeta');
+        if (metaEl) metaEl.textContent = `Title: ${meta.title} • Key: ${meta.key} • BPM: ${meta.bpm}`;
+        lastSongMeta = meta;
+        setStatus('✅ Lyrics generated locally');
+        return;
+      }
+      setStatus('Contacting backend…');
+      try{
+        const fd = new FormData();
+        fd.append('prompt', prompt);
+        fd.append('genre', genre);
+        fd.append('mood', mood);
+        fd.append('perspective', 'first-person');
+        fd.append('rhyme', rhyme);
+        fd.append('complexity', 'medium');
+        fd.append('structure', structure || 'default');
+        const headers = {};
+        try{ if (window.SOTAAuth && SOTAAuth.isOwner && SOTAAuth.isOwner()) { headers['X-Owner'] = '1'; } }catch(_){ }
+        const resp = await fetch(base + '/api/songwriter', { method:'POST', body: fd, headers });
+        if(!resp.ok){ const errTxt = await resp.text().catch(()=> ''); throw new Error('Backend error: '+(errTxt||resp.status)); }
+        const j = await resp.json();
+        const text = (j.plain_text || j.lyrics || j.text || '').trim();
+        out.value = text;
+        const meta = { title:j.title, genre:j.genre, mood:j.mood, key:j.key, bpm:j.bpm, structure:j.structure, chords:j.chords };
+        localStorage.setItem('sota:songwriter:last', out.value);
+        localStorage.setItem('sota:songwriter:last-meta', JSON.stringify(meta));
+        const metaEl = document.getElementById('songMeta');
+        if (metaEl) metaEl.textContent = `Title: ${meta.title || '—'} • Key: ${meta.key || '—'} • BPM: ${meta.bpm || tempo}`;
+        lastSongMeta = meta; // for accompaniment
+        setStatus('✅ Lyrics & song meta generated');
+      }catch(e){
+        console.error(e);
+        // Fallback to local generation on failure
+        const { text, meta } = buildLocalLyrics({ prompt, genre, mood, tempo, rhyme, structure });
+        out.value = text;
+        localStorage.setItem('sota:songwriter:last', out.value);
+        localStorage.setItem('sota:songwriter:last-meta', JSON.stringify(meta));
+        const metaEl = document.getElementById('songMeta');
+        if (metaEl) metaEl.textContent = `Title: ${meta.title} • Key: ${meta.key} • BPM: ${meta.bpm}`;
+        lastSongMeta = meta;
+        setStatus(`✅ Generated locally (backend unavailable at ${base}).`);
+      }
+    }
+
+    function appendSection(type){
+      const out = document.getElementById('lyrics');
+      const tag = type.toUpperCase();
+      out.value = (out.value.trim() + '\n\n['+tag+']\n').trim() + '\n';
+      setStatus('Added section: '+tag);
+    }
+
+    function copyLyrics(){
+      const out = document.getElementById('lyrics');
+      out.select(); document.execCommand('copy');
+      setStatus('Copied to clipboard');
+    }
+
+    function exportTxt(){
+      const blob = new Blob([document.getElementById('lyrics').value||''], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='lyrics.txt'; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function sendToDAW(){
+      localStorage.setItem('sota:songwriter:last', document.getElementById('lyrics').value||'');
+      setStatus('✅ Sent to DAW. Open the DAW and use Import > Lyrics (or paste).');
+    }
+
+    async function checkHealth(){
+      const base = apiBase();
+      try{
+        const r = await fetch((base||'') + '/api/health', { cache:'no-store' });
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        setStatus(`✅ API healthy at ${base}`);
+      }catch(err){
+        if (!base) setStatus('❌ API base is not set. Click “API Settings” (or press Shift + A).');
+        else setStatus(`❌ API unreachable at ${base}`);
+      }
+    }
+
+  // ===== Real-only accompaniment via SmartSynth sample library =====
+  let audioCtx = null, isPlaying=false, sources=[];
+    let lastSongMeta = null;
+    function noteFreq(note){ // e.g. C4, A3
+      const A4=440; const map={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+      const m = String(note).match(/^([A-G][#b]?)(-?\d)$/); if(!m) return A4;
+      const n=map[m[1]]; const o=parseInt(m[2]); const semis=n + (o-4)*12 - 9; return A4 * Math.pow(2, semis/12);
+    }
+    function chordToNotes(ch, key){ // ch like "Cmaj7" or note names from backend; we'll parse roots and add triad
+      const root = (ch.match(/^[A-G][#b]?/)||['C'])[0];
+      const isMinor = /(min|m(?!aj))/i.test(ch);
+      const third = isMinor? 3 : 4; const fifth=7;
+      // Base octave 4 for chords
+      const roots = [root+'4'];
+      // build midi semitone mapping relative to C
+      const order=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+      function shift(n, semi){ let idx=order.indexOf(n.replace('b', '#')); if(idx<0) idx=0; let t=(idx+semi)%12; if(t<0) t+=12; return order[t]; }
+      const n1 = shift(root, third)+'4'; const n2 = shift(root, fifth)+'4';
+      return [roots[0], n1, n2];
+    }
+    async function playRealAccompaniment(meta){
+      if (!window.SmartSynthAPI){ setStatus('SmartSynth not loaded. Open Advanced Composer to import samples first.', 'error'); return null; }
+      const bpm = meta.bpm || 120; const dur = 60;
+      try{
+        const stems = await window.SmartSynthAPI.renderGeorgiaFromSamples({ bpm, key: meta.key||'G', durationSec: dur });
+        if (!stems) { setStatus('No stems rendered. Import samples in Advanced Composer.', 'error'); return null; }
+        const ac = new (window.AudioContext||window.webkitAudioContext)();
+        audioCtx = ac; isPlaying = true; sources = [];
+        const start = ac.currentTime + 0.05;
+        const bus = ac.createGain(); bus.gain.value = 0.9; bus.connect(ac.destination);
+        const add = (buf)=>{ if(!buf) return; const src = ac.createBufferSource(); src.buffer = buf; src.connect(bus); src.start(start); sources.push(src); };
+        add(stems.guitar); add(stems.piano); add(stems.fiddle); add(stems.drums);
+        return start + dur + 0.25;
+      }catch(e){ console.error(e); setStatus('Accompaniment failed: '+(e?.message||e), 'error'); return null; }
+    }
+    async function toggleMusic(){
+      if(isPlaying){
+        isPlaying=false; try{ sources.forEach(s=>{ try{s.stop(); s.disconnect();}catch{} }); }catch{}; try{ audioCtx && audioCtx.close(); }catch(_){}
+        sources=[]; audioCtx=null; setStatus('⏹ Stopped'); document.getElementById('musicBtn').textContent='🎵 Generate Music'; return; }
+      const meta = lastSongMeta || (function(){ try{ return JSON.parse(localStorage.getItem('sota:songwriter:last-meta')||'null'); }catch(_){ return null; } })();
+      if(!meta){ setStatus('Generate lyrics first to obtain chords/meta'); return; }
+      const end = await playRealAccompaniment(meta);
+      if(end){ isPlaying=true; document.getElementById('musicBtn').textContent='⏹ Stop Music'; setStatus('🎶 Playing accompaniment from your sample library'); setTimeout(()=>{ if(isPlaying){ toggleMusic(); } }, Math.max(0, (end - (audioCtx?.currentTime||0))*1000)); }
+    }
+
+    // Voice commands
+    (function(){
+      if(!window.SOTAVoice) return; SOTAVoice.init({tts:false});
+      const selectPill = (rowId, val) => {
+        const pills = Array.from(document.querySelectorAll('#'+rowId+' .pill'));
+        const p = pills.find(x=> (x.getAttribute('data-val')||'').toLowerCase()===val.toLowerCase());
+        (pills||[]).forEach(x=>x.classList.remove('active')); if(p){ p.classList.add('active'); }
+      };
+      SOTAVoice.registerCommands([
+        { pattern:/^generate (?:song|lyrics)$/i, description:'Generate lyrics', handler:()=>generateLyrics() },
+        { pattern:/^set genre (rock|country|pop|hiphop|blues|folk)$/i, description:'Set genre', handler:(m)=>selectPill('genreRow', m[1]) },
+        { pattern:/^set mood (uplifting|melancholic|dark|romantic|epic)$/i, description:'Set mood', handler:(m)=>selectPill('moodRow', m[1]) },
+        { pattern:/^set tempo (\d{2,3})$/i, description:'Set tempo BPM', handler:(m)=>{ const t=document.getElementById('tempo'); t.value=m[1]; } },
+        { pattern:/^set rhyme (aabb|abab|abcb|free)$/i, description:'Set rhyme scheme', handler:(m)=>{ const sel=document.getElementById('rhyme'); sel.value=m[1].toUpperCase(); sel.dispatchEvent(new Event('change')); } },
+        { pattern:/^structure (aaba|freeform)$/i, description:'Set structure AABA/Freeform', handler:(m)=>{ const sel=document.getElementById('structure'); sel.value=m[1]; sel.dispatchEvent(new Event('change')); } },
+        { pattern:/^(?:write|add) (chorus|verse|bridge)$/i, description:'Append section', handler:(m)=>appendSection(m[1]) },
+        { pattern:/^copy (?:lyrics)?$/i, description:'Copy lyrics', handler:()=>copyLyrics() },
+        { pattern:/^export (?:lyrics|text)$/i, description:'Export .txt', handler:()=>exportTxt() },
+      ]);
+    })();
+  </script>
+</body>
+</html>

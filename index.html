@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOTA Professional Music & Video Production Suite</title>
     <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="voice.js"></script>
     <script src="./composer-shim.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
@@ -444,23 +446,26 @@
 
     <!-- 🎛️ MAIN COMPONENT GRID -->
     <main class="components-grid" id="components">
-        <!-- SOTA Synthesizer -->
+        <div style="grid-column: 1 / -1; background: rgba(50,205,50,0.08); border:1px solid rgba(50,205,50,0.25); color:#c4f5c4; padding:10px 14px; border-radius:12px; display:none;" id="subscriberBanner">
+            ✅ You are signed in as a Subscriber. Your session will persist across pages.
+        </div>
+        <!-- SmartSynth Advanced Composer -->
         <div class="component-card">
-            <div class="component-icon">🎹</div>
-            <h2 class="component-title">SOTA Synthesizer</h2>
+            <div class="component-icon">�</div>
+            <h2 class="component-title">SmartSynth Advanced Composer</h2>
             <p class="component-description">
-                Professional AI-powered music synthesis with voice-to-MIDI conversion, advanced composition engine, and premium genre packs.
+                Real‑only composition using your library of authentic samples. Import, classify, and compose with Styles—no genre packs required.
             </p>
             <ul class="component-features">
-                <li>AI Composition Engine with Style Recognition</li>
-                <li>Voice-to-MIDI Real-time Conversion</li>
-                <li>Premium Genre Pack Library</li>
-                <li>Professional Audio Effects Suite</li>
-                <li>Smart Harmony & Arrangement Assistant</li>
+                <li>Strict Real‑Only playback from your samples</li>
+                <li>IndexedDB library with drag‑and‑drop import</li>
+                <li>Styles & tags instead of genre packs</li>
+                <li>Mini‑mixer and MIDI export</li>
+                <li>Dark‑neon UI with directions</li>
             </ul>
             <div class="component-actions">
-                <a href="synthesizer.html" class="action-btn primary">Launch Synthesizer</a>
-                <button class="action-btn secondary" onclick="showLicensing('synthesizer')">View License</button>
+                <a href="advanced-composer.html" class="action-btn primary">Launch SmartSynth</a>
+                <a href="README.md" class="action-btn secondary" target="_blank">How to Import</a>
             </div>
         </div>
 
@@ -541,6 +546,46 @@
             <div class="component-actions">
                 <a href="SOTA_Music_Video_Generator.html" class="action-btn primary">Create Video</a>
                 <button class="action-btn secondary" onclick="showLicensing('video')">View License</button>
+            </div>
+        </div>
+
+        <!-- SOTA Webcam Enhancement Studio -->
+        <div class="component-card">
+            <div class="component-icon">📷</div>
+            <h2 class="component-title">Webcam Enhancement Studio</h2>
+            <p class="component-description">
+                Real-time background replacement with five pro scenes and perceptual upscaling to 8K target canvas. Record or pop out to Picture‑in‑Picture.
+            </p>
+            <ul class="component-features">
+                <li>Live person segmentation</li>
+                <li>5 preset backgrounds + custom image</li>
+                <li>Software upscaling to 4K/8K canvas</li>
+                <li>Sharpening for extra clarity</li>
+                <li>Recording and Picture‑in‑Picture</li>
+            </ul>
+            <div class="component-actions">
+                <a href="SOTA_Webcam_Studio.html" class="action-btn primary">Open Webcam Studio</a>
+                <a href="#licensing" class="action-btn secondary">License</a>
+            </div>
+        </div>
+
+        <!-- SOTA Mastering Tool -->
+        <div class="component-card">
+            <div class="component-icon">🎚️</div>
+            <h2 class="component-title">SOTA Mastering Tool</h2>
+            <p class="component-description">
+                Professional finalizing chain with EQ, multiband compression, saturation, stereo width, brickwall limiting, meters, analysis, and high-quality WAV export.
+            </p>
+            <ul class="component-features">
+                <li>5‑band EQ with shelves and peaks</li>
+                <li>3‑band dynamics with crossovers</li>
+                <li>Analog‑style saturation blend</li>
+                <li>Mid/Side stereo width control</li>
+                <li>Brickwall limiter and dithered export</li>
+            </ul>
+            <div class="component-actions">
+                <a href="SOTA_Mastering_Tool.html" class="action-btn primary">Open Mastering</a>
+                <a href="#licensing" class="action-btn secondary">License</a>
             </div>
         </div>
 
@@ -728,7 +773,7 @@
             </div>
             <div class="footer-section">
                 <h3 class="footer-title">Products</h3>
-                <a href="#" class="footer-link">SOTA Synthesizer</a>
+                <a href="advanced-composer.html" class="footer-link">SmartSynth Advanced Composer</a>
                 <a href="#" class="footer-link">Titan7 DAW</a>
                 <a href="#" class="footer-link">WarriorMic AI</a>
                 <a href="#" class="footer-link">Video Suite</a>
@@ -934,9 +979,20 @@
             e.preventDefault();
         });
         
-        console.log('🎵 SOTA Professional Suite Loaded');
+    console.log('🎵 SOTA Professional Suite Loaded');
         console.log('🔒 All content is strictly copyrighted and licensed');
         console.log('⚖️ Unauthorized use is prohibited and subject to legal action');
+
+        // Reflect subscriber session banner
+        function updateSubscriberBanner(){
+            const role = (window.SOTAAuth && SOTAAuth.getRole && SOTAAuth.getRole()) || null;
+            const el = document.getElementById('subscriberBanner');
+            if (el) el.style.display = (role === 'subscriber') ? 'block' : 'none';
+        }
+        window.addEventListener('sota:auth-changed', updateSubscriberBanner);
+        updateSubscriberBanner();
+        // Initialize voice control with TTS feedback off by default
+        try { if (window.SOTAVoice && SOTAVoice.init) { SOTAVoice.init({ tts: false }); } } catch(_) {}
     </script>
 </body>
 </html>

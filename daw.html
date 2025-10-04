@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Titan7 DAW - Revolutionary Visual Concept</title>
     <script src="config.js"></script>
+    <script src="auth.js"></script>
+    <script src="voice.js"></script>
     <script src="./composer-shim.js"></script>
+    <!-- React + ReactDOM for SmartSynth (AdvancedComposer component uses React APIs) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel Standalone so we can load smart-synth.js (contains JSX) in dev without a build step -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Load smart-synth with JSX transform enabled -->
+    <script type="text/babel" data-presets="env,react" src="smart-synth.js"></script>
+    <!-- MP3 encoder: lamejs CDN + provider shim -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <script src="vendor/mp3-encoder-provider.js"></script>
     <style>
         :root {
             --ink-1: #070b14;
@@ -879,7 +891,8 @@
             flex: 1;
             background: linear-gradient(180deg, var(--accent-cyan) 0%, var(--accent-fuchsia) 50%, var(--danger) 100%);
             border-radius: 2px;
-            animation: spectrum 0.5s ease-in-out infinite alternate;
+            /* Disable fake animation; heights will be driven by real audio analyser */
+            animation: none !important;
         }
 
         @keyframes spectrum {
@@ -926,6 +939,37 @@
                 border-radius: 15px;
             }
         }
+
+        /* 📂 Floating import menu for reliable file selection (no prompt) */
+        .import-menu {
+            position: fixed;
+            background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(7, 11, 20, 0.9) 100%);
+            border: 1px solid var(--line-1);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), var(--glow-cyan);
+            padding: 8px;
+            min-width: 260px;
+            z-index: 10000;
+        }
+        .import-menu button {
+            width: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid var(--line-1);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 6px;
+            text-align: left;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        .import-menu button + button { margin-top: 8px; }
+        .import-menu button:hover {
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(232, 121, 249, 0.25) 100%);
+            color: #fff;
+        }
+        /* Hide placeholder colored waveform bars; we'll render real waveforms on canvas */
+        .waveform-data{ display:none !important; }
     </style>
 </head>
 <body>
@@ -1042,16 +1086,27 @@
             
             <div class="toolbar-section">
                 <button class="toolbar-button" onclick="saveProject()">💾 Save</button>
-                <button class="toolbar-button" onclick="openImportMenu(event)">📂 Load</button>
+                <button class="toolbar-button" onclick="quickLoad(event)" oncontextmenu="openImportMenu(event); return false;">📂 Load</button>
                 <button class="toolbar-button" onclick="exportProject()">📤 Export</button>
+                <button class="toolbar-button" onclick="exportStems()">📦 Export Stems</button>
+                <button class="toolbar-button" onclick="exportMasterOneTouch()">🔊 Master (One‑Touch)</button>
+                <button class="toolbar-button" onclick="regenerateSelected()">♻️ Regenerate Selected</button>
+                <button class="toolbar-button" onclick="generateGeorgia()">🎵 Add Song: Georgia (60s)</button>
+                <button class="toolbar-button" id="strictToggle" onclick="toggleStrictRealOnly()">🛡️ Real-only: OFF</button>
+                <button class="toolbar-button" onclick="openSeparateDialog()">🧪 Separate Audio → Stems</button>
+                <button class="toolbar-button" onclick="openCloneDialog()">🧬 Clone Instrument → Library</button>
                 <!-- Hidden file inputs for imports -->
                 <input id="projectImportInput" type="file" accept=".sota,application/json" style="display:none" />
                 <input id="audioImportInput" type="file" accept="audio/*" style="display:none" />
+                <input id="anyImportInput" type="file" accept=".sota,application/json,audio/*" style="display:none" />
+                <input id="separateAudioInput" type="file" accept="audio/*" style="display:none" />
+                <input id="cloneAudioInput" type="file" accept="audio/*" style="display:none" />
             </div>
             
             <div class="toolbar-section">
-                <button class="toolbar-button">⚙️ Settings</button>
-                <button class="toolbar-button">❓ Help</button>
+                <button class="toolbar-button" onclick="openSettings()">⚙️ Settings</button>
+                <button class="toolbar-button" onclick="openHelp()">❓ Help</button>
+                <button class="toolbar-button" onclick="openLibraryStatus()">📚 Library Status</button>
             </div>
         </div>
 
@@ -1091,19 +1146,23 @@
                 </div>
             </div>
 
-            <!-- Genre Packs Section -->
+            <!-- Styles Section (tag-driven, replaces Genre Packs) -->
             <div class="sidebar-section">
-                <div class="sidebar-title">💎 Genre Packs</div>
-                <select style="width: 100%; padding: 8px; background: #1a1a1a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px;">
-                    <option>🤠 Country (FREE)</option>
-                    <option>✝️ Christian ($29.99)</option>
-                    <option>🎸 Rock ($34.99)</option>
-                    <option>💃 Pop ($27.99)</option>
-                    <option>🎷 Jazz ($39.99)</option>
-                    <option>🎧 EDM ($32.99)</option>
-                    <option>🎺 Blues ($24.99)</option>
-                    <option>🎤 Hip-Hop ($31.99)</option>
+                <div class="sidebar-title">🏷️ Styles</div>
+                <select id="styleSelect" style="width: 100%; padding: 8px; background: #1a1a1a; color: #FFD700; border: 1px solid #FFD700; border-radius: 5px;">
+                    <option value="country,ballad,acoustic">🤠 Country Ballad</option>
+                    <option value="bluegrass,acoustic,roots">🪕 Bluegrass</option>
+                    <option value="honky-tonk,barroom,piano">🍻 Honky Tonk</option>
+                    <option value="modern,country,radio">📻 Modern Country</option>
+                    <option value="outlaw,country,grit">🤠 Outlaw Country</option>
+                    <option value="rock,drums,drive">🎸 Rock</option>
+                    <option value="pop,sparkle">💃 Pop</option>
+                    <option value="jazz,swing">🎷 Jazz</option>
+                    <option value="edm,synth,bass">🎧 EDM</option>
+                    <option value="blues,shuffle">🎺 Blues</option>
+                    <option value="hiphop,boom-bap">🎤 Hip-Hop</option>
                 </select>
+                <button class="voice-button" style="width:100%;margin-top:8px;" onclick="applySelectedStyle()">Apply Style</button>
             </div>
 
             <!-- Spectrum Analyzer -->
@@ -1120,6 +1179,53 @@
                     <div class="spectrum-bar" style="height: 35%;"></div>
                     <div class="spectrum-bar" style="height: 65%;"></div>
                     <div class="spectrum-bar" style="height: 50%;"></div>
+                </div>
+            </div>
+
+            <!-- Directions: persistent help panel -->
+            <div class="sidebar-section" id="directionsPanel">
+                <div class="sidebar-title">📜 Directions</div>
+                <div style="font-size:12px;color:#c6d0ff;line-height:1.5">
+                    <details open>
+                        <summary style="cursor:pointer;color:#67e8f9">Getting Started</summary>
+                        <ul style="padding-left:16px;margin:6px 0">
+                            <li>Load audio or project: Click Load or press Ctrl+O.</li>
+                            <li>Record: Arm a track then press REC to capture mic.</li>
+                            <li>Play/Pause: Spacebar or PLAY button.</li>
+                        </ul>
+                    </details>
+                    <details>
+                        <summary style="cursor:pointer;color:#67e8f9">SmartSynth Library</summary>
+                        <ul style="padding-left:16px;margin:6px 0">
+                            <li>Real-only: Toggle in toolbar. Defaults ON.</li>
+                            <li>Styles: Pick a style and Apply to bias sample choice.</li>
+                            <li>Clone: Use "Clone Instrument → Library" to add your own samples.</li>
+                        </ul>
+                    </details>
+                    <details>
+                        <summary style="cursor:pointer;color:#67e8f9">Create Georgia (60s)</summary>
+                        <ul style="padding-left:16px;margin:6px 0">
+                            <li>Click "Add Song: Georgia (60s)". Uses real stems if available.</li>
+                            <li>Strict mode requires all stems from your library.</li>
+                        </ul>
+                    </details>
+                    <details>
+                        <summary style="cursor:pointer;color:#67e8f9">Export & Mastering</summary>
+                        <ul style="padding-left:16px;margin:6px 0">
+                            <li>Export: Save project .sota for recall.</li>
+                            <li>Stems: Export each track as WAV/MP3.</li>
+                            <li>Master: One‑Touch targets −14 LUFS, −1.0 dBTP true‑peak.</li>
+                        </ul>
+                    </details>
+                    <details>
+                        <summary style="cursor:pointer;color:#67e8f9">Editing</summary>
+                        <ul style="padding-left:16px;margin:6px 0">
+                            <li>Zoom: Ctrl + Mouse Wheel on waveform.</li>
+                            <li>Pan: Shift + Wheel. Select by dragging; Ctrl to multi‑select.</li>
+                            <li>Regenerate Selected replaces regions with BPM‑aware audio.</li>
+                            <li>Loop: Select a region and press LOOP to cycle it.</li>
+                        </ul>
+                    </details>
                 </div>
             </div>
         </div>
@@ -2231,7 +2337,7 @@
 
     <script>
         // 🎛️ ENHANCED 24-TRACK DAW FUNCTIONALITY
-        let isPlaying = false;
+    let isPlaying = false;
         let isRecording = false;
         let voiceMode = false;
         let aiComposer = false;
@@ -2239,12 +2345,41 @@
         let trackStates = {};
     let projectMeta = { name: 'Untitled Project', bpm: 120, key: 'C' };
 
+        // 🔁 Loop state (whole song by default; can adopt selection)
+        let loopEnabled = false;
+        let loopStartSec = 0;
+        let loopEndSec = null; // when null, uses song end
+
+        // 🔎 Per-track view state: zoom and selections
+        // trackView: trackNumber -> { zoomStart, zoomDuration, selections: Array<{start: number, end: number}>, drag: {start?: number, end?: number} }
+        const trackView = new Map();
+
+        function ensureTrackView(trackNumber) {
+            let st = trackView.get(trackNumber);
+            if (!st) {
+                const buf = trackBuffers.get(trackNumber);
+                const total = buf ? buf.duration : songLengthSecondsDefault;
+                st = { zoomStart: 0, zoomDuration: Math.min(20, total), selections: [], drag: {} };
+                trackView.set(trackNumber, st);
+            }
+            return st;
+        }
+
         // 🔊 Minimal Web Audio Engine
-        let audioCtx = null;
-        let masterGain = null;
+    let audioCtx = null;
+    let masterGain = null;
+    let masterAnalyser = null;
         const trackGains = new Map(); // trackNumber -> GainNode
         const trackBuffers = new Map(); // trackNumber -> AudioBuffer
         const trackSources = new Map(); // trackNumber -> { source: AudioBufferSourceNode, startedAt: number }
+    const trackAnalysers = new Map(); // trackNumber -> AnalyserNode
+
+        // 🎙️ Mic recording capture chain
+        let micStream = null; // MediaStream
+        let micSourceNode = null; // MediaStreamAudioSourceNode
+        let micProcessor = null; // ScriptProcessorNode
+        let micChunks = []; // collected Float32Array blocks (mono)
+        let micTotalLen = 0;
         let transportStartCtxTime = 0; // AudioContext.currentTime when started
         let transportStartSongTime = 0; // seconds into song when started (for resume)
         let transportRAF = 0;
@@ -2255,13 +2390,21 @@
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 masterGain = audioCtx.createGain();
                 masterGain.gain.value = 1;
-                masterGain.connect(audioCtx.destination);
-                // Pre-create track gains
+                // Master analyser for spectrum view
+                masterAnalyser = audioCtx.createAnalyser();
+                masterAnalyser.fftSize = 2048;
+                masterGain.connect(masterAnalyser);
+                masterAnalyser.connect(audioCtx.destination);
+                // Pre-create per-track gains and analysers, and route through master
                 for (let i = 1; i <= 24; i++) {
                     const g = audioCtx.createGain();
                     g.gain.value = trackStates[i]?.muted ? 0 : (trackStates[i]?.volume ?? 75) / 100;
-                    g.connect(masterGain);
+                    const an = audioCtx.createAnalyser();
+                    an.fftSize = 512;
+                    g.connect(an);
+                    an.connect(masterGain);
                     trackGains.set(i, g);
+                    trackAnalysers.set(i, an);
                 }
             }
         }
@@ -2293,8 +2436,18 @@
                     const source = audioCtx.createBufferSource();
                     source.buffer = buffer;
                     source.connect(trackGains.get(trackNum));
-                    const startOffset = Math.min(buffer.duration, Math.max(0, transportStartSongTime));
-                    source.start(now, startOffset);
+                    // Handle loop region if enabled
+                    let startOffset;
+                    if (loopEnabled) {
+                        const L0 = Math.max(0, Math.min(loopStartSec || 0, buffer.duration));
+                        const L1 = Math.max(L0 + 0.001, Math.min((loopEndSec==null?buffer.duration:loopEndSec), buffer.duration));
+                        source.loop = true; source.loopStart = L0; source.loopEnd = L1;
+                        startOffset = Math.min(L1 - 0.0001, Math.max(L0, transportStartSongTime || L0));
+                        source.start(now, startOffset);
+                    } else {
+                        startOffset = Math.min(buffer.duration, Math.max(0, transportStartSongTime));
+                        source.start(now, startOffset);
+                    }
                     trackSources.set(trackNum, { source, startedAt: now - startOffset });
                 } catch (e) {
                     console.warn('Track start failed', trackNum, e);
@@ -2323,6 +2476,48 @@
                     const pct = (total > 0) ? (clamped / total) * 100 : 0;
                     playhead.style.left = `${pct}%`;
                 }
+
+                // Update master spectrum bars from analyser
+                try {
+                    const bars = document.querySelectorAll('.spectrum-bar');
+                    if (masterAnalyser && bars.length) {
+                        const fb = new Uint8Array(masterAnalyser.frequencyBinCount);
+                        masterAnalyser.getByteFrequencyData(fb);
+                        const bandSize = Math.max(1, Math.floor(fb.length / bars.length));
+                        bars.forEach((bar, i) => {
+                            let sum = 0; let count = 0;
+                            const start = i * bandSize;
+                            const end = Math.min(fb.length, start + bandSize);
+                            for (let k = start; k < end; k++) { sum += fb[k]; count++; }
+                            const avg = count ? (sum / count) : 0;
+                            const pct = Math.max(2, Math.min(100, (avg/255) * 100));
+                            bar.style.height = pct + '%';
+                        });
+                    }
+                } catch(_) {}
+
+                // Update per-channel meters from per-track analysers
+                try {
+                    const meters = document.querySelectorAll('.mixer-channel .meter-level');
+                    for (let i = 1; i <= 24 && i-1 < meters.length; i++) {
+                        const an = trackAnalysers.get(i);
+                        const meterEl = meters[i-1];
+                        if (an && meterEl) {
+                            const td = new Uint8Array(an.fftSize);
+                            an.getByteTimeDomainData(td);
+                            // Compute RMS
+                            let sum = 0;
+                            for (let j = 0; j < td.length; j++) {
+                                const v = (td[j] - 128) / 128;
+                                sum += v * v;
+                            }
+                            const rms = Math.sqrt(sum / td.length);
+                            const pct = Math.max(0, Math.min(100, Math.round(rms * 140)));
+                            meterEl.style.height = pct + '%';
+                        }
+                    }
+                } catch(_) {}
+
                 if (clamped >= total) {
                     // reached end
                     togglePlay(false); // stop
@@ -2479,18 +2674,83 @@
                     'linear-gradient(135deg, #32CD32 0%, #228B22 100%)' : 
                     'linear-gradient(135deg, #FF4500 0%, #FF0000 100%)';
             }
-            if (isPlaying) startWaveformAnimation(); else stopWaveformAnimation();
+            if (isPlaying) startWaveformAnimation(); else {
+                stopWaveformAnimation();
+                // Reset meters and spectrum to idle
+                try {
+                    document.querySelectorAll('.mixer-channel .meter-level').forEach(m => m.style.height = '0%');
+                    document.querySelectorAll('.spectrum-bar').forEach(b => b.style.height = '2%');
+                } catch(_) {}
+            }
         }
 
-        function toggleRecord() {
-            isRecording = !isRecording;
-            const btn = event.target;
-            btn.textContent = isRecording ? '⏺️ STOP REC' : '⏺️ REC';
-            btn.className = isRecording ? 'transport-btn recording' : 'transport-btn';
-            
-            // Auto-arm selected track for recording
-            if (isRecording && selectedTrack) {
-                toggleTrackRecord(selectedTrack);
+        async function startMicRecording(){
+            try{
+                ensureAudio();
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+                    alert('Microphone access not supported in this browser.'); return false;
+                }
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true }, video:false });
+                micSourceNode = audioCtx.createMediaStreamSource(micStream);
+                // Use ScriptProcessorNode to capture PCM (deprecated but widely supported and simple in-page)
+                micProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+                micChunks = []; micTotalLen = 0;
+                micProcessor.onaudioprocess = (e)=>{
+                    const input = e.inputBuffer.getChannelData(0);
+                    // Copy to avoid retaining the same underlying buffer
+                    const copy = new Float32Array(input.length);
+                    copy.set(input);
+                    micChunks.push(copy); micTotalLen += copy.length;
+                };
+                // Monitor while recording
+                micSourceNode.connect(micProcessor);
+                micProcessor.connect(masterGain);
+                return true;
+            }catch(err){ console.error('Mic start failed', err); alert('Failed to start microphone: ' + (err?.message||err)); return false; }
+        }
+        async function stopMicRecording(){
+            try{
+                if (micProcessor){ try{ micProcessor.disconnect(); }catch(_){} micProcessor.onaudioprocess=null; micProcessor=null; }
+                if (micSourceNode){ try{ micSourceNode.disconnect(); }catch(_){} micSourceNode=null; }
+                if (micStream){ try{ micStream.getTracks().forEach(t=>t.stop()); }catch(_){} micStream=null; }
+                if (!micChunks || !micChunks.length || micTotalLen<=0) return null;
+                const sr = audioCtx?.sampleRate || 44100;
+                const buf = audioCtx.createBuffer(1, micTotalLen, sr);
+                const ch = buf.getChannelData(0);
+                let off = 0; for (const block of micChunks){ ch.set(block, off); off += block.length; }
+                // Light HPF to tame DC/off-low
+                try{
+                    const oac = new OfflineAudioContext(1, buf.length, sr);
+                    const src = oac.createBufferSource(); src.buffer = buf;
+                    const hpf = oac.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=40;
+                    src.connect(hpf).connect(oac.destination); src.start(0);
+                    const out = await oac.startRendering();
+                    return out;
+                }catch(_){ return buf; }
+            }catch(err){ console.error('Mic stop failed', err); return null; }
+        }
+        async function toggleRecord(){
+            const btn = (event && event.target) || document.querySelector('button[onclick="toggleRecord()"]');
+            if (!isRecording){
+                const ok = await startMicRecording();
+                if (!ok) return;
+                isRecording = true;
+                if (btn){ btn.textContent = '⏺️ STOP REC'; btn.className='transport-btn recording'; }
+                if (selectedTrack) toggleTrackRecord(selectedTrack);
+            } else {
+                isRecording = false;
+                if (btn){ btn.textContent = '⏺️ REC'; btn.className='transport-btn'; }
+                if (selectedTrack && trackStates[selectedTrack].recording) toggleTrackRecord(selectedTrack);
+                const recBuf = await stopMicRecording();
+                if (recBuf){
+                    trackBuffers.set(selectedTrack, recBuf);
+                    const trackEl = document.querySelector(`.track[data-track="${selectedTrack}"]`);
+                    if (trackEl){ trackEl.querySelector('.track-name').textContent = '🎙 Mic Take'; }
+                    renderWaveform(selectedTrack, recBuf);
+                    if (window.SOTA_toast) SOTA_toast(`Recorded ${(recBuf.duration||0).toFixed(1)}s to Track ${selectedTrack}`, { type:'success', duration:2500 });
+                } else {
+                    alert('No audio captured.');
+                }
             }
         }
 
@@ -2516,21 +2776,155 @@
             if (playhead) playhead.style.left = '0%';
             if (timeLabel) timeLabel.textContent = '⏱️ 00:00';
             stopWaveformAnimation();
+            // Reset meters and spectrum on full stop
+            try {
+                document.querySelectorAll('.mixer-channel .meter-level').forEach(m => m.style.height = '0%');
+                document.querySelectorAll('.spectrum-bar').forEach(b => b.style.height = '2%');
+            } catch(_) {}
         }
 
         function loop() {
-            alert('🔄 Loop mode toggled for 24-track session!');
+            // If selected track has a selection, use its first region; else loop entire song
+            const v = trackView.get(selectedTrack);
+            let s = 0, e = getSongSeconds();
+            if (v && v.selections && v.selections.length){
+                const r = v.selections[0];
+                s = Math.max(0, Math.min(r.start, r.end));
+                e = Math.max(s + 0.05, Math.min(getSongSeconds(), Math.max(r.start, r.end)));
+            }
+            if (!loopEnabled){ loopEnabled = true; loopStartSec = s; loopEndSec = e; if (window.SOTA_toast) SOTA_toast(`🔁 Loop ON ${s.toFixed(2)}–${e.toFixed(2)}s`, { type:'info', duration:2500 }); }
+            else { loopEnabled = false; loopStartSec = 0; loopEndSec = null; if (window.SOTA_toast) SOTA_toast('🔁 Loop OFF', { type:'info', duration:1500 }); }
+            // If playing, reschedule to apply loop without glitches
+            if (isPlaying){
+                const pos = (audioCtx ? (audioCtx.currentTime - transportStartCtxTime) + transportStartSongTime : 0);
+                scheduleAllFrom(pos);
+            }
         }
 
         // 📂 Import / Export / Save basic wiring
-        function openImportMenu(e){
-            const choice = prompt('📂 Import Options:\n\n1 = Import Project (.sota/.json)\n2 = Import Audio to Selected Track');
-            if (!choice) return;
-            if (choice.trim() === '1') {
-                document.getElementById('projectImportInput').click();
-            } else if (choice.trim() === '2') {
-                document.getElementById('audioImportInput').click();
+        // Replace prompt with a click-anchored floating menu to preserve user gesture for file dialogs
+        let __importMenuRef = null;
+        function openProjectChooser() {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.sota,application/json';
+            inp.style.position = 'fixed';
+            inp.style.left = '-10000px';
+            document.body.appendChild(inp);
+            inp.addEventListener('change', async (ev) => {
+                const file = ev.target.files && ev.target.files[0];
+                if (!file) { document.body.removeChild(inp); return; }
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    await applyProjectJSON(data);
+                } catch (err) {
+                    console.error('Project chooser import failed', err);
+                    alert('❌ Failed to import project: invalid file format.');
+                } finally {
+                    document.body.removeChild(inp);
+                }
+            }, { once: true });
+            inp.click();
+        }
+
+        function openAudioChooser() {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = 'audio/*';
+            inp.style.position = 'fixed';
+            inp.style.left = '-10000px';
+            document.body.appendChild(inp);
+            inp.addEventListener('change', async (ev) => {
+                const file = ev.target.files && ev.target.files[0];
+                if (!file) { document.body.removeChild(inp); return; }
+                try {
+                    await importAudioFileToSelectedTrack(file);
+                } catch (err) {
+                    console.error('Audio chooser import failed', err);
+                    alert('❌ Failed to import audio file.');
+                } finally {
+                    document.body.removeChild(inp);
+                }
+            }, { once: true });
+            inp.click();
+        }
+        function quickLoad(e){
+            // Primary left-click on Load: open a unified chooser that accepts project or audio
+            // Use an ephemeral input to avoid browser restrictions on hidden inputs
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.sota,application/json,audio/*';
+            inp.style.position = 'fixed';
+            inp.style.left = '-10000px';
+            document.body.appendChild(inp);
+            inp.addEventListener('change', async (ev) => {
+                const file = ev.target.files && ev.target.files[0];
+                if (!file) { document.body.removeChild(inp); return; }
+                try {
+                    if (/\.(sota|json)$/i.test(file.name)) {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        await applyProjectJSON(data);
+                    } else if (file.type && file.type.startsWith('audio/')) {
+                        await importAudioFileToSelectedTrack(file);
+                    } else if (/\.(wav|mp3|ogg|m4a|flac)$/i.test(file.name)) {
+                        await importAudioFileToSelectedTrack(file);
+                    } else {
+                        alert('⚠️ Unsupported file. Choose a .sota/.json project or an audio file.');
+                    }
+                } catch (err) {
+                    console.error('Unified import failed', err);
+                    alert('❌ Failed to import selected file.');
+                } finally {
+                    document.body.removeChild(inp);
+                }
+            }, { once: true });
+            inp.click();
+        }
+    function openImportMenu(e){
+            try { if (__importMenuRef) { __importMenuRef.remove(); __importMenuRef = null; } } catch(_){}
+            const btnRect = e && e.target && e.target.getBoundingClientRect ? e.target.getBoundingClientRect() : { left: 20, bottom: 80 };
+            const menu = document.createElement('div');
+            menu.className = 'import-menu';
+            menu.style.top = (btnRect.bottom + 8) + 'px';
+            menu.style.left = (btnRect.left) + 'px';
+            menu.innerHTML = `
+                <button type="button" data-action="project">📦 Import Project (.sota/.json)</button>
+                <button type="button" data-action="audio">🎵 Import Audio to Selected Track</button>
+            `;
+
+            function closeMenu(){
+                if (__importMenuRef){
+                    try { __importMenuRef.remove(); } catch(_){}
+                    __importMenuRef = null;
+                }
+                document.removeEventListener('click', onDocClick, true);
+                document.removeEventListener('keydown', onKeyDown, true);
             }
+            function onDocClick(ev){
+                if (menu && !menu.contains(ev.target)) closeMenu();
+            }
+            function onKeyDown(ev){
+                if (ev.key === 'Escape') closeMenu();
+            }
+
+            menu.addEventListener('click', (ev) => {
+                const action = ev.target && ev.target.getAttribute('data-action');
+                if (!action) return;
+                // Use ephemeral choosers to ensure native dialog opens reliably
+                if (action === 'project') openProjectChooser();
+                if (action === 'audio') openAudioChooser();
+                closeMenu();
+            });
+
+            document.body.appendChild(menu);
+            __importMenuRef = menu;
+            // Delay binding so the initial click that opened the menu doesn't immediately close it
+            setTimeout(() => {
+                document.addEventListener('click', onDocClick, true);
+                document.addEventListener('keydown', onKeyDown, true);
+            }, 0);
         }
 
         function exportProject(){
@@ -2554,6 +2948,183 @@
             a.click();
             URL.revokeObjectURL(a.href);
             alert('📤 Project exported (.sota)');
+        }
+
+        async function exportStems(){
+            try {
+                const api = window.SmartSynthAPI;
+                if (!api || typeof api.encodeBufferTo !== 'function'){
+                    alert('Export unavailable: SmartSynthAPI.encodeBufferTo not found.');
+                    return;
+                }
+                const wantMp3 = api.hasEncoderProvider && api.hasEncoderProvider();
+                const format = wantMp3 ? 'mp3' : 'wav';
+                let exported = 0;
+                for (let tn = 1; tn <= 24; tn++){
+                    const buf = trackBuffers.get(tn);
+                    if (!buf) continue;
+                    const trackEl = document.querySelector(`[data-track="${tn}"]`);
+                    const name = (trackEl?.querySelector('.track-name')?.textContent || `Track_${tn}`).replace(/[^\w\-\s]/g,'').trim().replace(/\s+/g,'_');
+                    const blob = await api.encodeBufferTo(buf, format, { quality: 3 });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `${(projectMeta.name||'Project').replace(/\s+/g,'_')}_T${String(tn).padStart(2,'0')}_${name}.${format}`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    exported++;
+                }
+                if (!exported) {
+                    alert('No stems to export. Load or generate audio on tracks first.');
+                } else {
+                    if (window.SOTA_toast) SOTA_toast(`Exported ${exported} stem${exported===1?'':'s'} as ${format.toUpperCase()}`, { type:'success', duration:3000 });
+                }
+            } catch (e){
+                console.error('Export stems failed', e);
+                alert('Export stems failed: ' + (e?.message||e));
+            }
+        }
+
+        // ==============================
+        // 🔊 One‑Touch Mastering (True‑Peak + LUFS)
+        // ==============================
+        function dbToLin(db){ return Math.pow(10, db/20); }
+        function linToDb(x){ return 20 * Math.log10(Math.max(1e-12, x)); }
+        function measureIntegratedLUFS(buffer){
+            // Simple BS.1770 approximation: LUFS ≈ -0.691 + 10*log10(mean(square))
+            try {
+                const chs = buffer.numberOfChannels;
+                const n = buffer.length;
+                if (!chs || !n) return { lufs: -Infinity, rms: 0 };
+                let sumsq = 0;
+                for (let c=0;c<chs;c++){
+                    const d = buffer.getChannelData(c);
+                    for (let i=0;i<n;i++){
+                        const s = d[i];
+                        sumsq += s*s;
+                    }
+                }
+                const meanSquare = sumsq / (n * chs);
+                const lufs = -0.691 + 10 * Math.log10(Math.max(1e-12, meanSquare));
+                const rms = Math.sqrt(meanSquare);
+                return { lufs, rms };
+            } catch(e){ console.warn('LUFS measure failed', e); return { lufs: -Infinity, rms: 0 }; }
+        }
+        function measureTruePeakAmp(buffer, oversample=4){
+            // Oversampled peak detection via linear interpolation between samples
+            try {
+                const chs = buffer.numberOfChannels;
+                const n = buffer.length;
+                if (!chs || !n) return 0;
+                let maxAbs = 0;
+                for (let c=0;c<chs;c++){
+                    const d = buffer.getChannelData(c);
+                    for (let i=0;i<n-1;i++){
+                        const s0 = d[i];
+                        const s1 = d[i+1];
+                        // include the original samples
+                        const a0 = Math.abs(s0); if (a0>maxAbs) maxAbs=a0;
+                        const a1 = Math.abs(s1); if (a1>maxAbs) maxAbs=a1;
+                        // check fractional positions
+                        for (let k=1;k<oversample;k++){
+                            const t = k/oversample;
+                            const s = s0*(1-t) + s1*t;
+                            const a = Math.abs(s);
+                            if (a>maxAbs) maxAbs = a;
+                        }
+                    }
+                }
+                return maxAbs;
+            } catch(e){ console.warn('True-peak measure failed', e); return 0; }
+        }
+        function scaleCopyBuffer(buffer, gain){
+            const chs = buffer.numberOfChannels; const n = buffer.length; const sr = buffer.sampleRate;
+            const out = (audioCtx ? audioCtx : new (window.AudioContext||window.webkitAudioContext)()).createBuffer(chs, n, sr);
+            for (let c=0;c<chs;c++){
+                const src = buffer.getChannelData(c);
+                const dst = out.getChannelData(c);
+                for (let i=0;i<n;i++) dst[i] = src[i] * gain;
+            }
+            return out;
+        }
+        async function mixdownToBuffer(targetSR=48000){
+            // Collect included tracks (respect solo/mute)
+            const included = [];
+            let anySolo = false;
+            for (let tn=1; tn<=24; tn++){
+                const buf = trackBuffers.get(tn);
+                const st = trackStates[tn];
+                if (!buf || !st) continue;
+                if (st.solo) anySolo = true;
+                included.push({ tn, buf, st });
+            }
+            const active = included.filter(t => anySolo ? t.st.solo : !t.st.muted);
+            if (!active.length) return null;
+            const maxDur = Math.max(...active.map(t=>t.buf.duration));
+            const length = Math.max(1, Math.ceil((targetSR||48000) * maxDur));
+            const ac = new OfflineAudioContext(2, length, targetSR||48000);
+            // Gentle bus compressor to gel the mix and catch peaks
+            const comp = ac.createDynamicsCompressor();
+            comp.threshold.value = -14; // dB
+            comp.knee.value = 6;
+            comp.ratio.value = 2.5;
+            comp.attack.value = 0.003;
+            comp.release.value = 0.25;
+            comp.connect(ac.destination);
+            for (const t of active){
+                try {
+                    const src = ac.createBufferSource();
+                    src.buffer = t.buf;
+                    const g = ac.createGain();
+                    const volPct = (t.st.volume ?? 75) / 100; // 0..1
+                    // Map slider to more natural curve
+                    g.gain.value = Math.pow(volPct, 1.5);
+                    src.connect(g).connect(comp);
+                    src.start(0);
+                } catch(e){ console.warn('Mix include failed for track', t.tn, e); }
+            }
+            return ac.startRendering();
+        }
+        async function exportMasterOneTouch(){
+            try{
+                const api = window.SmartSynthAPI;
+                if (!api || typeof api.encodeBufferTo !== 'function'){
+                    alert('Master export unavailable: SmartSynthAPI.encodeBufferTo not found.');
+                    return;
+                }
+                if (window.SOTA_toast) SOTA_toast('Mastering… One‑Touch True‑Peak + LUFS', { type:'info', duration:2500 });
+                // 1) Mixdown all active tracks to stereo buffer
+                const mixBuf = await mixdownToBuffer(48000);
+                if (!mixBuf){ alert('Nothing to master. Load or record tracks first.'); return; }
+                // 2) Loudness normalization to target LUFS
+                const targetLUFS = -14; // streaming-friendly target
+                const { lufs: curLUFS } = measureIntegratedLUFS(mixBuf);
+                const gainLU = isFinite(curLUFS) ? dbToLin(targetLUFS - curLUFS) : 1.0;
+                const preBuf = gainLU !== 1.0 ? scaleCopyBuffer(mixBuf, Math.min(10, Math.max(0.1, gainLU))) : mixBuf;
+                // 3) True‑peak ceiling at -1.0 dBTP using oversampled peak detection and scaling if needed
+                const tpAmp = measureTruePeakAmp(preBuf, 4);
+                const tpCeilDb = -1.0; const tpCeilAmp = dbToLin(tpCeilDb);
+                const needScale = tpAmp > tpCeilAmp ? (tpCeilAmp / Math.max(1e-9, tpAmp)) : 1.0;
+                const mastered = needScale !== 1.0 ? scaleCopyBuffer(preBuf, needScale) : preBuf;
+                // 4) Final telemetry
+                const { lufs: outLUFS } = measureIntegratedLUFS(mastered);
+                const outTPAmp = measureTruePeakAmp(mastered, 4);
+                const outTPdB = linToDb(outTPAmp);
+                // 5) Encode and download
+                const wantMp3 = api.hasEncoderProvider && api.hasEncoderProvider();
+                const format = wantMp3 ? 'mp3' : 'wav';
+                const blob = await api.encodeBufferTo(mastered, format, { quality: 3 });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                const base = (projectMeta.name||'Project').replace(/\s+/g,'_');
+                a.download = `${base}_MASTER_${format.toUpperCase()}.${format}`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+                const msg = `Mastered ${format.toUpperCase()} • Target ${targetLUFS} LUFS\nFinal: ${outLUFS.toFixed(1)} LUFS, ${outTPdB.toFixed(1)} dBTP`;
+                if (window.SOTA_toast) SOTA_toast(msg, { type:'success', duration:4000 }); else alert(msg);
+            } catch(e){
+                console.error('One‑Touch Mastering failed', e);
+                alert('Mastering failed: ' + (e?.message||e));
+            }
         }
 
         function saveProject(){
@@ -2597,6 +3168,22 @@
             });
         }
 
+        // 🏷️ Styles (tag-driven sample preference)
+        function applySelectedStyle(){
+            try {
+                const sel = document.getElementById('styleSelect');
+                if (!sel) { alert('No Styles control found'); return; }
+                const val = sel.value || '';
+                const tags = val.split(',').map(s=>s.trim()).filter(Boolean);
+                if (window.SmartSynthAPI && typeof window.SmartSynthAPI.setActiveStyleTags === 'function'){
+                    window.SmartSynthAPI.setActiveStyleTags(tags);
+                    if (window.SOTA_toast) SOTA_toast(`Style applied: ${tags.join(', ')}`, { type:'info', duration:2000 });
+                } else {
+                    alert('SmartSynth styles not available');
+                }
+            } catch(e){ console.warn('applySelectedStyle failed', e); }
+        }
+
         // 🌟 WARRIOR PLUGIN MANAGEMENT (Enhanced)
         function showPlugin(pluginId) {
             document.getElementById(pluginId).style.display = 'block';
@@ -2612,22 +3199,7 @@
         }
 
         // 🎨 ENHANCED VISUAL EFFECTS
-        setInterval(() => {
-            const bars = document.querySelectorAll('.spectrum-bar');
-            bars.forEach(bar => {
-                const height = Math.random() * 80 + 20;
-                bar.style.height = height + '%';
-            });
-            
-            // Animate meter levels when playing
-            if (isPlaying) {
-                const meters = document.querySelectorAll('.meter-level');
-                meters.forEach(meter => {
-                    const height = Math.random() * 80 + 20;
-                    meter.style.height = height + '%';
-                });
-            }
-        }, 200);
+        // Remove fake animations; visuals are now driven by analyser updates during playback
 
         // 🎵 ENHANCED KEYBOARD SHORTCUTS
         document.addEventListener('keydown', (e) => {
@@ -2635,6 +3207,13 @@
                 case 'Space':
                     e.preventDefault();
                     togglePlay();
+                    break;
+                case 'KeyO':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        // Open unified chooser (project or audio)
+                        quickLoad(e);
+                    }
                     break;
                 case 'KeyR':
                     if (e.ctrlKey) {
@@ -2702,11 +3281,168 @@
             });
         });
 
+        // Helpers to reuse import logic across file input and drag-drop
+        async function applyProjectJSON(data){
+            // Apply basic fields
+            projectMeta.name = data.name || projectMeta.name;
+            projectMeta.bpm = Number(data.bpm) || projectMeta.bpm;
+            projectMeta.key = data.key || projectMeta.key;
+            const bpmNode = document.querySelector('.bpm-display');
+            if (bpmNode && projectMeta.bpm) bpmNode.textContent = `${projectMeta.bpm} BPM`;
+            // Apply tracks (name, instrument, states)
+            if (Array.isArray(data.tracks)){
+                data.tracks.forEach(t => {
+                    const el = document.querySelector(`.track[data-track="${t.id}"]`);
+                    if (!el || !trackStates[t.id]) return;
+                    if (t.name) el.querySelector('.track-name').textContent = t.name;
+                    if (t.instrument) el.querySelector('.track-instrument').textContent = t.instrument;
+                    if (typeof t.volume === 'number') {
+                        trackStates[t.id].volume = t.volume;
+                        const handle = el.querySelector('.volume-handle');
+                        if (handle) handle.style.left = `${Math.max(0, Math.min(100, t.volume))}%`;
+                        updateTrackGain(t.id);
+                    }
+                    if (t.muted) {
+                        if (!trackStates[t.id].muted) toggleTrackMute(t.id);
+                    } else if (trackStates[t.id].muted) {
+                        toggleTrackMute(t.id); // toggle off
+                    }
+                    if (t.solo) {
+                        if (!trackStates[t.id].solo) toggleTrackSolo(t.id);
+                    } else if (trackStates[t.id].solo) {
+                        toggleTrackSolo(t.id); // toggle off
+                    }
+                });
+            }
+            alert(`✅ Project imported: ${projectMeta.name}`);
+        }
+
+        // Draw a real waveform on a canvas for the given buffer
+        function renderWaveform(trackNumber, buffer) {
+            try {
+                const trackEl = document.querySelector(`.track[data-track="${trackNumber}"]`);
+                if (!trackEl) return;
+                let canvas = trackEl.querySelector('canvas.waveform-canvas');
+                const container = trackEl.querySelector('.track-waveform');
+                if (!canvas && container) {
+                    canvas = document.createElement('canvas');
+                    canvas.className = 'waveform-canvas';
+                    container.innerHTML = '';
+                    container.appendChild(canvas);
+                }
+                if (!canvas || !buffer) return;
+                // Resize canvas to container
+                const rect = container.getBoundingClientRect();
+                canvas.width = Math.max(100, Math.floor(rect.width));
+                canvas.height = Math.max(40, Math.floor(rect.height));
+                const ctx2d = canvas.getContext('2d');
+                ctx2d.clearRect(0,0,canvas.width,canvas.height);
+                // Build peaks in visible window
+                const view = ensureTrackView(trackNumber);
+                const visStart = Math.max(0, Math.min(buffer.duration, view.zoomStart));
+                const visEnd = Math.max(visStart, Math.min(buffer.duration, visStart + view.zoomDuration));
+                const chData = [];
+                for (let ch = 0; ch < buffer.numberOfChannels; ch++) chData.push(buffer.getChannelData(ch));
+                const sampleRate = buffer.sampleRate;
+                const startSample = Math.floor(visStart * sampleRate);
+                const endSample = Math.floor(visEnd * sampleRate);
+                const visSamples = Math.max(1, endSample - startSample);
+                const step = Math.max(1, Math.floor(visSamples / canvas.width));
+                const midY = canvas.height / 2;
+                ctx2d.lineWidth = 1;
+                const grad = ctx2d.createLinearGradient(0,0,canvas.width,0);
+                grad.addColorStop(0, '#FFD700');
+                grad.addColorStop(1, '#FF8C00');
+                ctx2d.strokeStyle = grad;
+                ctx2d.beginPath();
+                for (let x = 0; x < canvas.width; x++) {
+                    const start = startSample + x * step;
+                    const end = Math.min(endSample, start + step);
+                    let min = 1, max = -1;
+                    for (let i = start; i < end; i++) {
+                        let v = 0;
+                        for (let ch = 0; ch < chData.length; ch++) v += chData[ch][i] || 0;
+                        v /= chData.length || 1;
+                        if (v < min) min = v;
+                        if (v > max) max = v;
+                    }
+                    const y1 = midY + min * midY;
+                    const y2 = midY + max * midY;
+                    ctx2d.moveTo(x + 0.5, y1);
+                    ctx2d.lineTo(x + 0.5, y2);
+                }
+                ctx2d.stroke();
+
+                // Draw selection overlays (neon)
+                if (view.selections && view.selections.length) {
+                    for (const sel of view.selections) {
+                        const sx = Math.max(0, Math.min(canvas.width, Math.floor(((sel.start - visStart) / (visEnd - visStart)) * canvas.width)));
+                        const ex = Math.max(0, Math.min(canvas.width, Math.floor(((sel.end - visStart) / (visEnd - visStart)) * canvas.width)));
+                        if (ex > sx) {
+                            ctx2d.fillStyle = 'rgba(34,211,238,0.15)';
+                            ctx2d.fillRect(sx, 0, ex - sx, canvas.height);
+                            ctx2d.strokeStyle = 'rgba(232,121,249,0.6)';
+                            ctx2d.lineWidth = 2;
+                            ctx2d.strokeRect(sx + 0.5, 0.5, (ex - sx) - 1, canvas.height - 1);
+                        }
+                    }
+                }
+                // Active drag selection preview
+                if (view.drag && typeof view.drag.start === 'number' && typeof view.drag.end === 'number') {
+                    const s = Math.min(view.drag.start, view.drag.end);
+                    const e = Math.max(view.drag.start, view.drag.end);
+                    const sx = Math.max(0, Math.min(canvas.width, Math.floor(((s - visStart) / (visEnd - visStart)) * canvas.width)));
+                    const ex = Math.max(0, Math.min(canvas.width, Math.floor(((e - visStart) / (visEnd - visStart)) * canvas.width)));
+                    if (ex > sx) {
+                        ctx2d.fillStyle = 'rgba(232,121,249,0.12)';
+                        ctx2d.fillRect(sx, 0, ex - sx, canvas.height);
+                        ctx2d.strokeStyle = 'rgba(34,211,238,0.8)';
+                        ctx2d.lineWidth = 2;
+                        ctx2d.strokeRect(sx + 0.5, 0.5, (ex - sx) - 1, canvas.height - 1);
+                    }
+                }
+            } catch (e) { console.warn('Waveform render failed', e); }
+        }
+
+        async function importAudioFileToSelectedTrack(file){
+            ensureAudio();
+            const arrayBuf = await file.arrayBuffer();
+            const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+            trackBuffers.set(selectedTrack, audioBuf);
+            const trackEl = document.querySelector(`.track[data-track="${selectedTrack}"]`);
+            if (trackEl) {
+                trackEl.querySelector('.track-name').textContent = `🎵 ${file.name}`;
+                // Render waveform to canvas
+                renderWaveform(selectedTrack, audioBuf);
+                // Initialize view window to first 20s or full length
+                const view = ensureTrackView(selectedTrack);
+                view.zoomStart = 0;
+                view.zoomDuration = Math.min(20, audioBuf.duration);
+            }
+            alert(`🎵 Imported audio to Track ${selectedTrack}: ${file.name}`);
+        }
+
         // 🎯 TRACK INTERACTION SETUP
         document.addEventListener('DOMContentLoaded', () => {
+            // Prepare waveform canvases and zero-out meters at startup
+            try {
+                document.querySelectorAll('.track-waveform').forEach(div => {
+                    if (!div.querySelector('canvas.waveform-canvas')) {
+                        const c = document.createElement('canvas');
+                        c.className = 'waveform-canvas';
+                        c.width = Math.max(100, Math.floor(div.clientWidth));
+                        c.height = Math.max(40, Math.floor(div.clientHeight));
+                        div.innerHTML = '';
+                        div.appendChild(c);
+                    }
+                });
+                document.querySelectorAll('.mixer-channel .meter-level').forEach(m => m.style.height = '0%');
+                document.querySelectorAll('.spectrum-bar').forEach(b => b.style.height = '2%');
+            } catch(_) {}
             // Wire import inputs
             const projectInput = document.getElementById('projectImportInput');
             const audioInput = document.getElementById('audioImportInput');
+            const anyInput = document.getElementById('anyImportInput');
 
             if (projectInput) {
                 projectInput.addEventListener('change', async (ev) => {
@@ -2715,39 +3451,7 @@
                     try {
                         const text = await file.text();
                         const data = JSON.parse(text);
-                        // Apply basic fields
-                        projectMeta.name = data.name || projectMeta.name;
-                        projectMeta.bpm = Number(data.bpm) || projectMeta.bpm;
-                        projectMeta.key = data.key || projectMeta.key;
-                        // Update BPM label if present
-                        const bpmNode = document.querySelector('.bpm-display');
-                        if (bpmNode && projectMeta.bpm) bpmNode.textContent = `${projectMeta.bpm} BPM`;
-                        // Apply tracks (name, instrument, states)
-                        if (Array.isArray(data.tracks)){
-                            data.tracks.forEach(t => {
-                                const el = document.querySelector(`.track[data-track="${t.id}"]`);
-                                if (!el) return;
-                                if (t.name) el.querySelector('.track-name').textContent = t.name;
-                                if (t.instrument) el.querySelector('.track-instrument').textContent = t.instrument;
-                                if (typeof t.volume === 'number') {
-                                    trackStates[t.id].volume = t.volume;
-                                    const handle = el.querySelector('.volume-handle');
-                                    if (handle) handle.style.left = `${Math.max(0, Math.min(100, t.volume))}%`;
-                                    updateTrackGain(t.id);
-                                }
-                                if (t.muted) {
-                                    if (!trackStates[t.id].muted) toggleTrackMute(t.id);
-                                } else if (trackStates[t.id].muted) {
-                                    toggleTrackMute(t.id); // toggle off
-                                }
-                                if (t.solo) {
-                                    if (!trackStates[t.id].solo) toggleTrackSolo(t.id);
-                                } else if (trackStates[t.id].solo) {
-                                    toggleTrackSolo(t.id); // toggle off
-                                }
-                            });
-                        }
-                        alert(`✅ Project imported: ${projectMeta.name}`);
+                        await applyProjectJSON(data);
                     } catch (err) {
                         console.error('Import failed', err);
                         alert('❌ Failed to import project: invalid file format.');
@@ -2762,17 +3466,7 @@
                     const file = ev.target.files && ev.target.files[0];
                     if (!file) return;
                     try {
-                        ensureAudio();
-                        // Decode audio to buffer and assign to selected track
-                        const arrayBuf = await file.arrayBuffer();
-                        const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
-                        trackBuffers.set(selectedTrack, audioBuf);
-                        const trackEl = document.querySelector(`.track[data-track="${selectedTrack}"]`);
-                        if (trackEl) {
-                            trackEl.querySelector('.track-name').textContent = `🎵 ${file.name}`;
-                            trackEl.querySelector('.waveform-data').style.opacity = 0.9;
-                        }
-                        alert(`🎵 Imported audio to Track ${selectedTrack}: ${file.name}`);
+                        await importAudioFileToSelectedTrack(file);
                     } catch (err) {
                         console.error('Audio import failed', err);
                         alert('❌ Failed to import audio file.');
@@ -2780,6 +3474,67 @@
                         ev.target.value = '';
                     }
                 });
+            }
+
+            if (anyInput) {
+                anyInput.addEventListener('change', async (ev) => {
+                    const file = ev.target.files && ev.target.files[0];
+                    if (!file) return;
+                    try {
+                        if (/\.(sota|json)$/i.test(file.name)) {
+                            const text = await file.text();
+                            const data = JSON.parse(text);
+                            await applyProjectJSON(data);
+                        } else if (file.type && file.type.startsWith('audio/')) {
+                            await importAudioFileToSelectedTrack(file);
+                        } else {
+                            // Try to infer by extension again if type missing
+                            if (/\.(wav|mp3|ogg|m4a|flac)$/i.test(file.name)) {
+                                await importAudioFileToSelectedTrack(file);
+                            } else {
+                                alert('⚠️ Unsupported file. Choose a .sota/.json project or an audio file.');
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Unified import failed', err);
+                        alert('❌ Failed to import selected file.');
+                    } finally {
+                        ev.target.value = '';
+                    }
+                });
+            }
+
+            // 🖱️ Drag-and-drop support (project or audio onto the track area)
+            const trackArea = document.querySelector('.track-area');
+            if (trackArea) {
+                const dragEnter = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; trackArea.style.outline = '2px dashed #22d3ee'; };
+                const dragLeave = (e) => { e.preventDefault(); trackArea.style.outline = ''; };
+                const dragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; };
+                const onDrop = async (e) => {
+                    e.preventDefault();
+                    trackArea.style.outline = '';
+                    const files = e.dataTransfer && e.dataTransfer.files;
+                    if (!files || files.length === 0) return;
+                    const file = files[0];
+                    try {
+                        if (/\.(sota|json)$/i.test(file.name)) {
+                            const text = await file.text();
+                            const data = JSON.parse(text);
+                            await applyProjectJSON(data);
+                        } else if (file.type && file.type.startsWith('audio/')) {
+                            await importAudioFileToSelectedTrack(file);
+                        } else {
+                            alert('⚠️ Unsupported file type. Drop a .sota/.json project or an audio file.');
+                        }
+                    } catch (err) {
+                        console.error('Drop import failed', err);
+                        alert('❌ Failed to import dropped file.');
+                    }
+                };
+                trackArea.addEventListener('dragenter', dragEnter);
+                trackArea.addEventListener('dragover', dragOver);
+                trackArea.addEventListener('dragleave', dragLeave);
+                trackArea.addEventListener('drop', onDrop);
             }
             // Add click handlers to tracks
             document.querySelectorAll('.track').forEach(track => {
@@ -2826,6 +3581,110 @@
                     handle.style.left = `${percent}%`;
                     updateTrackGain(trackNumber);
                 });
+
+                // Waveform interactions: zoom, pan, selection
+                const canvas = track.querySelector('canvas.waveform-canvas');
+                const container = track.querySelector('.track-waveform');
+                function xToTime(x) {
+                    const buf = trackBuffers.get(trackNumber);
+                    if (!buf) return 0;
+                    const view = ensureTrackView(trackNumber);
+                    const visStart = view.zoomStart;
+                    const visEnd = Math.min(buf.duration, view.zoomStart + view.zoomDuration);
+                    const clamped = Math.max(0, Math.min(container.clientWidth || 1, x));
+                    const t = visStart + (clamped / Math.max(1, container.clientWidth)) * (visEnd - visStart);
+                    return Math.max(0, Math.min(buf.duration, t));
+                }
+                function redraw() {
+                    const buf = trackBuffers.get(trackNumber);
+                    if (buf) renderWaveform(trackNumber, buf);
+                }
+                // Wheel: Ctrl = zoom, Shift = pan
+                container.addEventListener('wheel', (e) => {
+                    const buf = trackBuffers.get(trackNumber);
+                    if (!buf) return;
+                    const view = ensureTrackView(trackNumber);
+                    const delta = Math.sign(e.deltaY);
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        // Zoom around mouse
+                        const rect = container.getBoundingClientRect();
+                        const mouseX = (e.clientX - rect.left);
+                        const centerTime = xToTime(mouseX);
+                        const minDur = 0.1;
+                        const maxDur = Math.max(1, buf.duration);
+                        let newDur = view.zoomDuration * (delta > 0 ? 1.2 : 0.8);
+                        newDur = Math.max(minDur, Math.min(maxDur, newDur));
+                        // Keep centerTime fixed
+                        let newStart = centerTime - (mouseX / Math.max(1, rect.width)) * newDur;
+                        newStart = Math.max(0, Math.min(buf.duration - newDur, newStart));
+                        view.zoomDuration = newDur;
+                        view.zoomStart = newStart;
+                        redraw();
+                    } else if (e.shiftKey) {
+                        e.preventDefault();
+                        // Pan horizontally
+                        const panSec = (view.zoomDuration || 1) * 0.1 * delta; // 10% pan per wheel step
+                        let ns = (view.zoomStart || 0) + panSec;
+                        ns = Math.max(0, Math.min(Math.max(0, buf.duration - (view.zoomDuration || buf.duration)), ns));
+                        view.zoomStart = ns;
+                        redraw();
+                    }
+                }, { passive: false });
+                // Drag to select region; Ctrl for multi-select
+                let isDraggingSel = false;
+                container.addEventListener('mousedown', (e) => {
+                    const buf = trackBuffers.get(trackNumber);
+                    if (!buf) return;
+                    const view = ensureTrackView(trackNumber);
+                    if (!e.ctrlKey) view.selections = [];
+                    view.drag = { start: xToTime(e.offsetX), end: xToTime(e.offsetX) };
+                    isDraggingSel = true;
+                    redraw();
+                });
+                container.addEventListener('mousemove', (e) => {
+                    if (!isDraggingSel) return;
+                    const buf = trackBuffers.get(trackNumber);
+                    if (!buf) return;
+                    const view = ensureTrackView(trackNumber);
+                    view.drag.end = xToTime(e.offsetX);
+                    redraw();
+                });
+                const endDrag = () => {
+                    if (!isDraggingSel) return;
+                    isDraggingSel = false;
+                    const buf = trackBuffers.get(trackNumber);
+                    if (!buf) return;
+                    const view = ensureTrackView(trackNumber);
+                    if (typeof view.drag.start === 'number' && typeof view.drag.end === 'number') {
+                        let s = Math.max(0, Math.min(buf.duration, view.drag.start));
+                        let e = Math.max(0, Math.min(buf.duration, view.drag.end));
+                        if (e < s) [s, e] = [e, s];
+                        // Ignore tiny drags (< 20ms)
+                        if (e - s > 0.02) {
+                            view.selections.push({ start: s, end: e });
+                        }
+                    }
+                    view.drag = {};
+                    redraw();
+                };
+                container.addEventListener('mouseup', endDrag);
+                container.addEventListener('mouseleave', endDrag);
+                // Double-click clears selections
+                container.addEventListener('dblclick', () => {
+                    const view = ensureTrackView(trackNumber);
+                    view.selections = [];
+                    view.drag = {};
+                    redraw();
+                });
+            });
+
+            // Redraw all waveforms on resize
+            window.addEventListener('resize', () => {
+                for (let i = 1; i <= 24; i++) {
+                    const buf = trackBuffers.get(i);
+                    if (buf) renderWaveform(i, buf);
+                }
             });
             
             // EQ knob interactions
@@ -2848,9 +3707,26 @@
             
             // Initialize first track as selected
             selectTrack(1);
+            // Voice control: register DAW-specific commands
+            try {
+                if (window.SOTAVoice && SOTAVoice.registerCommands) {
+                    SOTAVoice.registerCommands([
+                        { pattern: /^(play|start)$/i, description: 'Transport: play', handler: () => { if (!isPlaying) togglePlay(); } },
+                        { pattern: /^(pause|stop)$/i, description: 'Transport: stop', handler: () => { if (isPlaying) stop(); } },
+                        { pattern: /^record$/i, description: 'Transport: record', handler: () => { if (!isRecording) toggleRecord(); } },
+                        { pattern: /^toggle record$/i, description: 'Transport: toggle record', handler: () => { toggleRecord(); } },
+                        { pattern: /^mute track (\d{1,2})$/i, description: 'Mute a track by number', handler: (m) => { const n = parseInt(m[1]); if (n>=1 && n<=24) toggleTrackMute(n); } },
+                        { pattern: /^solo track (\d{1,2})$/i, description: 'Solo a track by number', handler: (m) => { const n = parseInt(m[1]); if (n>=1 && n<=24) toggleTrackSolo(n); } },
+                        { pattern: /^select track (\d{1,2})$/i, description: 'Select a track by number', handler: (m) => { const n = parseInt(m[1]); if (n>=1 && n<=24) selectTrack(n); } },
+                        { pattern: /^load project$/i, description: 'Open project chooser', handler: () => { openProjectChooser(); } },
+                        { pattern: /^import audio$/i, description: 'Open audio chooser', handler: () => { openAudioChooser(); } },
+                        { pattern: /^save project$/i, description: 'Save/export project', handler: () => { exportProject(); } }
+                    ]);
+                }
+            } catch(_) {}
         });
         
-        // 🔒 OWNER ACCESS CODE SYSTEM
+    // 🔒 OWNER ACCESS CODE SYSTEM
         let ownerAccessActive = false;
         const validOwnerCodes = ['19Flanary72', '10Tanner16', '05Ashley95', '20Bumper06', '09Chance14'];
         
@@ -2891,6 +3767,9 @@
                 
                 // Enable all premium features
                 enableOwnerFeatures();
+
+                // Persist owner session
+                try { if (window.SOTAAuth && SOTAAuth.signInOwner) { SOTAAuth.signInOwner({ code }); } } catch(_) {}
                 
             } else {
                 // Invalid code
@@ -2922,7 +3801,620 @@
                     validateOwnerCode();
                 }
             });
+
+            // Restore owner session from persistent auth
+            try {
+                if (window.SOTAAuth && SOTAAuth.isOwner && SOTAAuth.isOwner()) {
+                    ownerAccessActive = true;
+                    const indicator = document.getElementById('ownerStatusIndicator');
+                    if (indicator) indicator.style.display = 'block';
+                    enableOwnerFeatures();
+                }
+            } catch(_) {}
         });
+
+        // 🌗 Theme (dark/light) helpers
+        const THEME_KEY = 'sota:daw:theme';
+        function applyTheme(theme){
+            const root = document.documentElement;
+            if (theme === 'light') {
+                root.style.setProperty('--ink-1', '#f5f7fb');
+                root.style.setProperty('--ink-2', '#e9eef7');
+                root.style.setProperty('--ink-3', '#dde6f5');
+                root.style.setProperty('--panel', 'rgba(0,0,0,0.04)');
+                root.style.setProperty('--panel-2', 'rgba(0,0,0,0.06)');
+                root.style.setProperty('--line-1', 'rgba(20, 24, 35, 0.25)');
+                root.style.setProperty('--line-2', 'rgba(20, 24, 35, 0.35)');
+                root.style.setProperty('--text', '#0b1220');
+                root.style.setProperty('--muted', '#334155');
+            } else {
+                root.style.removeProperty('--ink-1');
+                root.style.removeProperty('--ink-2');
+                root.style.removeProperty('--ink-3');
+                root.style.removeProperty('--panel');
+                root.style.removeProperty('--panel-2');
+                root.style.removeProperty('--line-1');
+                root.style.removeProperty('--line-2');
+                root.style.removeProperty('--text');
+                root.style.removeProperty('--muted');
+            }
+            try { localStorage.setItem(THEME_KEY, theme || 'dark'); } catch(_) {}
+        }
+        function loadTheme(){
+            let t = 'dark';
+            try { t = localStorage.getItem(THEME_KEY) || 'dark'; } catch(_) {}
+            applyTheme(t);
+        }
+
+        // Apply saved theme ASAP
+        try { loadTheme(); } catch(_) {}
+
+        // 🧭 Help and ⚙️ Settings modals
+        function openHelp(){
+            let m = document.getElementById('dawHelpModal');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'dawHelpModal';
+                m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;';
+                m.innerHTML = `
+                    <div style="max-width:820px;width:92%;background:linear-gradient(135deg, rgba(0,0,0,0.85), rgba(10,15,31,0.95));border:1px solid var(--line-1);border-radius:16px;padding:20px;box-shadow:var(--glow-cyan);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <div style="font-weight:800;color:var(--accent-cyan)">Titan7 DAW Help</div>
+                            <button onclick="this.closest('#dawHelpModal').style.display='none'" class="toolbar-button">✖ Close</button>
+                        </div>
+                        <div style="color:var(--text);line-height:1.5;">
+                            <p><b>Zoom per track</b>: Hold Ctrl and use the mouse wheel over a waveform. Hold Shift + wheel to pan.</p>
+                            <p><b>Select regions</b>: Click-drag over a waveform to select. Hold Ctrl to multi-select. Double-click to clear selections.</p>
+                            <p><b>Regenerate</b>: Click "♻️ Regenerate Selected" to resynthesize only the selected parts using granular audio that fits your BPM.</p>
+                            <p><b>Shortcuts</b>: Space = Play/Pause, Ctrl+O = Load, Ctrl+R = Record, Arrow Up/Down = Select track, M = Mute.</p>
+                            <p><b>API</b>: Press Shift + A to open API settings from the global SOTA shim.</p>
+                        </div>
+                    </div>`;
+                document.body.appendChild(m);
+            }
+            m.style.display = 'flex';
+        }
+        function openSettings(){
+            let m = document.getElementById('dawSettingsModal');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'dawSettingsModal';
+                m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;';
+                m.innerHTML = `
+                    <div style="max-width:520px;width:92%;background:linear-gradient(135deg, rgba(0,0,0,0.85), rgba(10,15,31,0.95));border:1px solid var(--line-1);border-radius:16px;padding:20px;box-shadow:var(--glow-cyan);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                            <div style="font-weight:800;color:var(--accent-cyan)">Settings</div>
+                            <button onclick="this.closest('#dawSettingsModal').style.display='none'" class="toolbar-button">✖ Close</button>
+                        </div>
+                        <div style="color:var(--text);line-height:1.7;display:flex;gap:16px;align-items:center;">
+                            <div>Theme:</div>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="radio" name="themeChoice" value="dark" checked> Dark
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                                <input type="radio" name="themeChoice" value="light"> Light
+                            </label>
+                            <button class="toolbar-button" id="saveThemeBtn">Save</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(m);
+                // Initialize from saved theme
+                let current = 'dark';
+                try { current = localStorage.getItem(THEME_KEY) || 'dark'; } catch(_) {}
+                const radios = m.querySelectorAll('input[name="themeChoice"]');
+                radios.forEach(r => { r.checked = (r.value === current); });
+                m.querySelector('#saveThemeBtn').addEventListener('click', () => {
+                    const val = Array.from(radios).find(r=>r.checked)?.value || 'dark';
+                    applyTheme(val);
+                });
+            }
+            m.style.display = 'flex';
+        }
+
+        // ♻️ Regenerate: granular resynthesis for selected regions
+        function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+        function linearInterp(buf, idx){
+            const i0 = Math.floor(idx);
+            const i1 = Math.min(buf.length - 1, i0 + 1);
+            const t = idx - i0;
+            return buf[i0] * (1 - t) + buf[i1] * t;
+        }
+        function granularResynth(buffer, startSec, endSec, opts={}){
+            const sr = buffer.sampleRate;
+            const chs = buffer.numberOfChannels;
+            const dur = Math.max(0, endSec - startSec);
+            const outLen = Math.max(1, Math.floor(dur * sr));
+            const out = [];
+            for (let c = 0; c < chs; c++) out[c] = new Float32Array(outLen);
+            const regionStartIdx = Math.floor(startSec * sr);
+            const regionEndIdx = Math.min(buffer.length, Math.floor(endSec * sr));
+            const regionLen = Math.max(1, regionEndIdx - regionStartIdx);
+            // Parameters tuned to BPM
+            const bpm = Number(projectMeta.bpm) || 120;
+            const beatSec = 60 / bpm;
+            const baseGrain = clamp(opts.grainMs || beatSec * 250, 15, 120); // in ms; ~1/16 to 1/8
+            const grainSamples = Math.floor((baseGrain / 1000) * sr);
+            const hop = Math.max(1, Math.floor(grainSamples * 0.5)); // 50% overlap
+            const window = new Float32Array(grainSamples);
+            for (let i = 0; i < grainSamples; i++) {
+                // Hann window
+                window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (grainSamples - 1)));
+            }
+            // Fill output with overlapping grains drawn from region with jitter and small pitch drift
+            let writePos = 0;
+            const regionData = [];
+            for (let c = 0; c < chs; c++) regionData[c] = buffer.getChannelData(c);
+            while (writePos < outLen) {
+                // Choose a grain center roughly aligned to beat grid within the region
+                const beatGrid = Math.floor(((startSec * sr) + writePos) / Math.max(1, Math.floor(beatSec * sr)));
+                const gridCenter = (beatGrid * Math.floor(beatSec * sr));
+                let grainCenter = gridCenter + (Math.random() - 0.5) * Math.floor(0.25 * beatSec * sr);
+                // Clamp to region
+                grainCenter = clamp(grainCenter, regionStartIdx + grainSamples, regionEndIdx - grainSamples);
+                // Small pitch drift +/- 3%
+                const pitch = 1 + (Math.random() - 0.5) * 0.06;
+                // Render grain
+                for (let i = 0; i < grainSamples && (writePos + i) < outLen; i++) {
+                    const srcIdx = grainCenter + (i * pitch) - (grainSamples / 2);
+                    for (let c = 0; c < chs; c++) {
+                        const src = regionData[c];
+                        const s = linearInterp(src, clamp(srcIdx, 0, src.length - 1));
+                        out[c][writePos + i] += s * window[i];
+                    }
+                }
+                writePos += hop;
+            }
+            // Normalize softly to avoid clipping
+            let peak = 0;
+            for (let c = 0; c < chs; c++) {
+                for (let i = 0; i < outLen; i++) peak = Math.max(peak, Math.abs(out[c][i]));
+            }
+            const makeup = peak > 0 ? clamp(1 / peak, 0, 1.5) : 1;
+            for (let c = 0; c < chs; c++) {
+                for (let i = 0; i < outLen; i++) out[c][i] *= makeup;
+            }
+            // Create AudioBuffer
+            const outBuf = audioCtx ? audioCtx.createBuffer(chs, outLen, sr) : null;
+            if (outBuf) {
+                for (let c = 0; c < chs; c++) outBuf.getChannelData(c).set(out[c]);
+                return outBuf;
+            } else {
+                // Fallback: construct via OfflineAudioContext if audioCtx not ready
+                const oac = new OfflineAudioContext(chs, outLen, sr);
+                const buf2 = oac.createBuffer(chs, outLen, sr);
+                for (let c = 0; c < chs; c++) buf2.getChannelData(c).set(out[c]);
+                return buf2;
+            }
+        }
+
+        function spliceBuffer(original, startSec, endSec, newSeg){
+            const sr = original.sampleRate;
+            const chs = original.numberOfChannels;
+            const startIdx = Math.floor(startSec * sr);
+            const endIdx = Math.floor(endSec * sr);
+            const total = original.length;
+            const out = audioCtx.createBuffer(chs, total, sr);
+            const regionLen = Math.max(0, endIdx - startIdx);
+            const xf = Math.min(256, Math.floor(regionLen / 8)); // small crossfade
+            for (let c = 0; c < chs; c++) {
+                const src = original.getChannelData(c);
+                const dst = out.getChannelData(c);
+                const seg = newSeg.getChannelData(c);
+                const segLen = Math.min(seg.length, regionLen);
+                // 1) Copy before up to startIdx - xf
+                const preLen = Math.max(0, startIdx - xf);
+                if (preLen > 0) dst.set(src.subarray(0, preLen), 0);
+                // 2) Fade-in overlap region (before tail with seg head)
+                for (let i = 0; i < xf; i++) {
+                    const a = i / Math.max(1, xf);
+                    const beforeIdx = preLen + i; // startIdx - xf + i
+                    const segIdx = i;
+                    const beforeS = src[beforeIdx] || 0;
+                    const segS = seg[segIdx] || 0;
+                    dst[beforeIdx] = beforeS * (1 - a) + segS * a;
+                }
+                // 3) Middle of segment (no overlap)
+                const midStartDst = startIdx;
+                const midStartSeg = xf;
+                const midLen = Math.max(0, segLen - 2 * xf);
+                if (midLen > 0) {
+                    dst.set(seg.subarray(midStartSeg, midStartSeg + midLen), midStartDst);
+                }
+                // 4) Fade-out overlap (seg tail with after head)
+                for (let i = 0; i < xf; i++) {
+                    const a = i / Math.max(1, xf);
+                    const dstIdx = startIdx + (segLen - xf) + i;
+                    const segIdx = (segLen - xf) + i;
+                    const afterIdx = endIdx + i;
+                    const segS = seg[segIdx] || 0;
+                    const afterS = src[afterIdx] || 0;
+                    dst[dstIdx] = segS * (1 - a) + afterS * a;
+                }
+                // 4.5) If seg shorter than region, fill the remainder with original to preserve timing
+                const filledEnd = startIdx + segLen;
+                const gapStart = Math.max(startIdx, filledEnd);
+                const gapEnd = endIdx;
+                if (gapEnd > gapStart) {
+                    dst.set(src.subarray(gapStart, gapEnd), gapStart);
+                }
+                // 5) Copy remaining after beyond endIdx
+                const afterDstStart = startIdx + regionLen;
+                const afterSrc = src.subarray(endIdx);
+                if (afterSrc.length > 0) dst.set(afterSrc, afterDstStart);
+            }
+            return out;
+        }
+
+        async function regenerateSelected(){
+            ensureAudio();
+            // Collect selections by track
+            const tasks = [];
+            for (let i = 1; i <= 24; i++) {
+                const view = trackView.get(i);
+                const buf = trackBuffers.get(i);
+                if (!view || !buf || !view.selections || view.selections.length === 0) continue;
+                // Sort and clamp selections
+                const sels = view.selections.map(r => ({ start: clamp(r.start, 0, buf.duration), end: clamp(r.end, 0, buf.duration) }))
+                    .filter(r => (r.end - r.start) > 0.02)
+                    .sort((a,b)=>a.start-b.start);
+                if (!sels.length) continue;
+                tasks.push({ track: i, buffer: buf, sels });
+            }
+            if (!tasks.length) { alert('Select a region on a track (drag on waveform) to regenerate. Hold Ctrl to multi-select.'); return; }
+            const wasPlaying = isPlaying;
+            if (wasPlaying) togglePlay(false);
+            // Process sequentially per track
+            for (const t of tasks) {
+                let cur = t.buffer;
+                for (const r of t.sels) {
+                    // Safety limit for very long regions
+                    if ((r.end - r.start) > 45) {
+                        alert(`⚠️ Skipping very long selection (>45s) on Track ${t.track}.`);
+                        continue;
+                    }
+                    const seg = granularResynth(cur, r.start, r.end, { grainMs: (60/(projectMeta.bpm||120))*250 });
+                    cur = spliceBuffer(cur, r.start, r.end, seg);
+                }
+                trackBuffers.set(t.track, cur);
+                renderWaveform(t.track, cur);
+                // Clear selections after apply
+                const v = ensureTrackView(t.track);
+                v.selections = [];
+                v.drag = {};
+            }
+            // Reschedule playback at current position if it was playing
+            if (wasPlaying) {
+                scheduleAllFrom(transportStartSongTime || 0);
+                isPlaying = true;
+                const btn = document.querySelector('button[onclick="togglePlay()"]');
+                if (btn) btn.textContent = '⏸️ PAUSE';
+            }
+            alert('♻️ Regeneration complete. Selections replaced with new audio that fits the song.');
+        }
+
+        // 🎼 Georgia generator: 60s slow country (Acoustic, Fiddle, Piano, Light Drums)
+        function isStrictRealOnly(){
+            try { return localStorage.getItem('SOTA.strictRealOnly') === 'true'; } catch { return false; }
+        }
+        function setStrictRealOnly(v){
+            try { localStorage.setItem('SOTA.strictRealOnly', v ? 'true' : 'false'); } catch {}
+            const btn = document.getElementById('strictToggle');
+            if (btn) btn.textContent = v ? '🛡️ Real-only: ON' : '🛡️ Real-only: OFF';
+            if (window.SOTA_toast) SOTA_toast(v ? 'Strict Real-only enabled' : 'Strict Real-only disabled', { type:'info', duration:1500 });
+        }
+        function toggleStrictRealOnly(){ setStrictRealOnly(!isStrictRealOnly()); }
+        document.addEventListener('DOMContentLoaded', () => {
+            // Default to ON if unset
+            let v = null; try { v = localStorage.getItem('SOTA.strictRealOnly'); } catch(_) {}
+            if (v===null || v===undefined) { setStrictRealOnly(true); }
+            else { setStrictRealOnly(v==='true'); }
+        });
+
+        async function openLibraryStatus(){
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const api = window.SmartSynthAPI;
+                const { byInst, list } = api ? await api.getSampleIndex(ctx) : { byInst: new Map(), list: [] };
+                const need = ['guitar','fiddle','piano','drums'];
+                const counts = Object.fromEntries(need.map(k => [k, (byInst.get(k) || []).length]));
+                const sf2 = api?.hasSoundfontProvider?.() ? 'Yes' : 'No';
+                const sep = api?.hasSeparationProvider?.() ? 'Yes' : 'No';
+                const enc = api?.hasEncoderProvider?.() ? 'Yes' : 'No';
+                alert(`Library Status\n\nTotal samples: ${list.length}\nGuitar: ${counts.guitar}\nFiddle: ${counts.fiddle}\nPiano: ${counts.piano}\nDrums: ${counts.drums}\n\nSF2 provider: ${sf2}\nSeparation provider: ${sep}\nEncoder provider: ${enc}`);
+                try { await ctx.close?.(); } catch {}
+            } catch (e){ console.warn('Library status failed', e); }
+        }
+
+        // ===================
+        // Separate Audio → Stems (requires separation provider)
+        // ===================
+        function openSeparateDialog(){
+            const api = window.SmartSynthAPI;
+            if (!api || !api.hasSeparationProvider || !api.hasSeparationProvider()){
+                alert('No separation provider registered. Please register SmartSynthAPI.registerSeparationProvider(...) first.');
+                return;
+            }
+            document.getElementById('separateAudioInput').click();
+        }
+        document.getElementById('separateAudioInput').addEventListener('change', async (e)=>{
+            const file = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (!file) return;
+            try {
+                const api = window.SmartSynthAPI;
+                if (window.SOTA_toast) SOTA_toast('Separating audio into stems…', { type:'info', duration:3000 });
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const ab = await file.arrayBuffer();
+                const buffer = await ctx.decodeAudioData(ab.slice(0));
+                const stems = await api.separateBuffer(ctx, buffer, null); // null => provider decides and returns all stems
+                try { await ctx.close?.(); } catch {}
+                if (!stems || typeof stems !== 'object') { alert('Separation returned no stems'); return; }
+                // Map stems to tracks with sensible defaults
+                const order = [
+                    'vocal','lead_vocal','vocal_lead','backing_vocal','choir',
+                    'guitar','acoustic_guitar','electric_guitar','steel_guitar','banjo','mandolin',
+                    'piano','keys','keyboard','organ',
+                    'fiddle','violin','strings',
+                    'bass',
+                    'drums','drumset','percussion','perc','hihat','snare','kick',
+                    'synth','pad','fx','ambient'
+                ];
+                const preferredTracks = {
+                    vocal: 1, lead_vocal: 1, vocal_lead: 1, backing_vocal: 2, choir: 2,
+                    guitar: 3, acoustic_guitar: 18, electric_guitar: 3, steel_guitar: 14, banjo: 12, mandolin: 12,
+                    piano: 9, keys: 9, keyboard: 9, organ: 10,
+                    fiddle: 11, violin: 11, strings: 17,
+                    bass: 5,
+                    drums: 6, drumset: 6, percussion: 19, perc: 19, hihat: 8, snare: 7, kick: 6,
+                    synth: 20, pad: 21, fx: 22, ambient: 22
+                };
+                const usedTracks = new Set();
+                const allTrackEls = Array.from(document.querySelectorAll('.track'));
+                const isEmptyTrack = (tn)=> !trackBuffers.get(tn);
+                function findNextFree(start=3){
+                    for (let t=start; t<=24; t++) if (!usedTracks.has(t) && isEmptyTrack(t)) return t;
+                    for (let t=3; t<=24; t++) if (!usedTracks.has(t)) return t;
+                    return null;
+                }
+                // Sort stem keys by our order preference, then by name
+                const keys = Object.keys(stems).sort((a,b)=>{
+                    const ia = order.indexOf(a); const ib = order.indexOf(b);
+                    if (ia===-1 && ib===-1) return a.localeCompare(b);
+                    if (ia===-1) return 1; if (ib===-1) return -1; return ia-ib;
+                });
+                let placed = 0;
+                for (const k of keys){
+                    const buf = stems[k];
+                    if (!buf) continue;
+                    let tn = preferredTracks[k];
+                    if (!tn || usedTracks.has(tn)) tn = findNextFree(preferredTracks[k]||3);
+                    if (!tn) continue;
+                    trackBuffers.set(tn, buf);
+                    renderWaveform(tn, buf);
+                    try { document.querySelector(`[data-track="${tn}"] .track-name`).textContent = `🎚 ${k.replace(/_/g,' ')}`; } catch {}
+                    usedTracks.add(tn); placed++;
+                }
+                if (placed>0){
+                    if (window.SOTA_toast) SOTA_toast(`Placed ${placed} stems on tracks`, { type:'success', duration:2500 });
+                    transportStartSongTime = 0; scheduleAllFrom(0); isPlaying = true;
+                    const btn = document.querySelector('button[onclick="togglePlay()"]'); if (btn) btn.textContent = '⏸️ PAUSE';
+                } else {
+                    alert('No stems were placed.');
+                }
+            } catch (err){ console.error('Separation failed', err); alert('Separation failed: ' + (err?.message||err)); }
+        });
+
+        // ===================
+        // Clone Instrument → Library (SmartClone)
+        // ===================
+        function openCloneDialog(){
+            const inst = prompt('Enter instrument label for cloned samples (e.g., guitar, piano, fiddle, drums):', 'guitar');
+            if (!inst) return;
+            const tags = prompt('Optional: Enter comma-separated style tags (e.g., country,ballad,acoustic):', '');
+            const inp = document.getElementById('cloneAudioInput');
+            inp.dataset.instrument = inst;
+            inp.dataset.tags = tags || '';
+            inp.click();
+        }
+        document.getElementById('cloneAudioInput').addEventListener('change', async (e)=>{
+            const file = e.target.files && e.target.files[0];
+            const inst = e.target.dataset.instrument || 'unknown';
+            const tags = (e.target.dataset.tags || '').split(',').map(s=>s.trim()).filter(Boolean);
+            e.target.value=''; e.target.dataset.instrument='';
+            e.target.dataset.tags='';
+            if (!file) return;
+            try {
+                if (window.SOTA_toast) SOTA_toast('Cloning instrument to library…', { type:'info', duration:2000 });
+                const res = await window.SmartSynthAPI.cloneInstrumentFromFile(file, inst, { tags });
+                if (window.SOTA_toast) SOTA_toast(`Cloned ${res.savedCount} notes (${res.segmentCount} segments)`, { type:'success', duration:3000 });
+            } catch (err){ console.error('Clone failed', err); alert('Clone failed: ' + (err?.message||err)); }
+        });
+
+        async function generateGeorgia(){
+            try {
+                ensureAudio();
+                const bpm = 72; const duration = 60; const key = 'G';
+                // Update project meta and UI
+                projectMeta.name = 'Georgia'; projectMeta.bpm = bpm; projectMeta.key = key;
+                const bpmNode = document.querySelector('.bpm-display'); if (bpmNode) bpmNode.textContent = `${bpm} BPM`;
+                try { document.querySelector('.timeline-controls').insertAdjacentHTML('beforeend', `<span style="margin-left:20px;color:var(--muted);">🎵 Georgia • ${bpm} BPM • Key ${key}</span>`); } catch(_){ }
+                const wasPlaying = isPlaying; if (wasPlaying) togglePlay(false);
+                if (window.SOTA_toast) SOTA_toast('Rendering Georgia (60s)…', { type:'info', duration:2500 });
+
+                let gtr = null, fid = null, pno = null, drm = null;
+                let usedSmart = false;
+                const strict = isStrictRealOnly();
+                // Prefer SmartSynth sample/SF2/adaptive stems
+                if (window.SmartSynthAPI && typeof window.SmartSynthAPI.renderGeorgiaFromSamples === 'function') {
+                    try {
+                        const stems = await window.SmartSynthAPI.renderGeorgiaFromSamples({ bpm, key, durationSec: duration });
+                        if (stems) {
+                            gtr = stems.guitar || null;
+                            fid = stems.fiddle || null;
+                            pno = stems.piano || null;
+                            drm = stems.drums || null;
+                            usedSmart = !!(gtr || fid || pno || drm);
+                        }
+                    } catch (e) {
+                        console.warn('SmartSynthAPI Georgia path failed', e);
+                        if (!strict && window.SOTA_toast) SOTA_toast('SmartSynth failed — trying synth fallback', { type:'warning', duration:2500 });
+                    }
+                }
+
+                if (!strict) {
+                    // Per-stem fallback to internal offline renderers if any are missing
+                    if (!gtr) gtr = await renderAcousticGuitar(bpm, duration, key);
+                    if (!fid) fid = await renderFiddlePad(bpm, duration, key);
+                    if (!pno) pno = await renderPianoChords(bpm, duration, key);
+                    if (!drm) drm = await renderLightDrums(bpm, duration);
+                } else {
+                    // Strict mode: require real stems for all four; if missing, abort
+                    const missing = [];
+                    if (!gtr) missing.push('guitar');
+                    if (!fid) missing.push('fiddle');
+                    if (!pno) missing.push('piano');
+                    if (!drm) missing.push('drums');
+                    if (missing.length) {
+                        console.error('Strict Real-only: missing stems', missing);
+                        alert('Strict Real-only is enabled. Missing real stems: ' + missing.join(', ') + '.\nPlease import more real samples or register an SF2 provider, then try again.');
+                        if (wasPlaying) togglePlay(false);
+                        return;
+                    }
+                }
+
+                // Assign to tracks: 18 Acoustic, 11 Fiddle, 9 Piano, 19 Percussion
+                trackBuffers.set(18, gtr); renderWaveform(18, gtr);
+                trackBuffers.set(11, fid); renderWaveform(11, fid);
+                trackBuffers.set(9, pno); renderWaveform(9, pno);
+                trackBuffers.set(19, drm); renderWaveform(19, drm);
+                // Update labels
+                try { document.querySelector('[data-track="18"] .track-name').textContent = '🎸 Georgia Acoustic'; } catch(_){}
+                try { document.querySelector('[data-track="11"] .track-name').textContent = '🎻 Georgia Fiddle'; } catch(_){}
+                try { document.querySelector('[data-track="9"] .track-name').textContent = '🎹 Georgia Piano'; } catch(_){}
+                try { document.querySelector('[data-track="19"] .track-name').textContent = '🥁 Georgia Drums'; } catch(_){}
+
+                // Start from beginning
+                transportStartSongTime = 0;
+                scheduleAllFrom(0);
+                isPlaying = true;
+                const btn = document.querySelector('button[onclick="togglePlay()"]'); if (btn) btn.textContent = '⏸️ PAUSE';
+                if (window.SOTA_toast) SOTA_toast(usedSmart ? 'Georgia ready — using Library/SF2 stems' : (isStrictRealOnly() ? 'Georgia ready — all real stems' : 'Georgia ready — internal synth fallback'), { type:'success', duration:2500 });
+            } catch (e){
+                console.error('Georgia generation failed', e);
+                alert('❌ Failed to generate Georgia');
+            }
+        }
+
+        // Helpers: chords and notes
+        const NOTE_ORDER = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        function noteShift(n, semi){ let idx = NOTE_ORDER.indexOf(n.replace('b','#')); if (idx<0) idx = 0; let t = (idx + semi) % 12; if (t<0) t += 12; return NOTE_ORDER[t]; }
+        function chordTones(root, type='maj'){ // returns relative semis
+            if (type==='min') return [0,3,7,12];
+            return [0,4,7,12];
+        }
+        function chordForKeyG(bar){ // simple 16-bar country-ish
+            const seq = ['G','C','G','D', 'G','Em','C','D', 'G','C','G','D', 'Em','C','D','G'];
+            return seq[bar % seq.length];
+        }
+        function parseChord(ch){
+            const m = ch.match(/^([A-G][#b]?)(m|min)?/i); if (!m) return { root:'G', type:'maj' };
+            return { root: m[1].replace('b','#'), type: m[2]? 'min':'maj' };
+        }
+
+        // Offline renderers
+        async function renderAcousticGuitar(bpm, durationSec, key){
+            const sr = 44100; const chs = 2; const len = Math.ceil(sr*durationSec);
+            const ac = new OfflineAudioContext(chs, len, sr);
+            const master = ac.createGain(); master.gain.value = 0.7; master.connect(ac.destination);
+            const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 3200; lp.Q.value = 0.8; lp.connect(master);
+            const rev = ac.createConvolver(); rev.buffer = makeIR(ac, 1.8, 0.4); const wet = ac.createGain(); wet.gain.value = 0.25; const dry = ac.createGain(); dry.gain.value = 0.75; lp.connect(dry); lp.connect(rev); rev.connect(wet); wet.connect(master); dry.connect(master);
+            const spb = 60/bpm; const barDur = 4*spb; const bars = Math.ceil(durationSec / barDur);
+            for (let b=0; b<bars; b++){
+                const ch = parseChord(chordForKeyG(b));
+                const tones = chordTones(ch.root, ch.type).map(semi => noteShift(ch.root, semi));
+                // Strum pattern: beat 1 and 3 down, 2 and 4 up (light)
+                for (let beat=0; beat<4; beat++){
+                    const when = 0.05 + b*barDur + beat*spb;
+                    const dir = (beat%2===0) ? 1 : -1; // down or up
+                    const order = dir>0 ? [0,1,2,3] : [3,2,1,0];
+                    order.forEach((idx,i)=>{
+                        const n = tones[idx%tones.length];
+                        const freq = noteFreq(n + (idx<3? '3':'4'));
+                        const t = when + i*0.022; // 22ms stagger
+                        pluck(ac, lp, freq, t, 0.35, -14);
+                    });
+                }
+            }
+            return ac.startRendering();
+        }
+
+        async function renderFiddlePad(bpm, durationSec, key){
+            const sr = 44100; const chs = 2; const len = Math.ceil(sr*durationSec);
+            const ac = new OfflineAudioContext(chs, len, sr);
+            const master = ac.createGain(); master.gain.value = 0.6; master.connect(ac.destination);
+            const bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 900; bp.Q.value = 1.2; bp.connect(master);
+            const rev = ac.createConvolver(); rev.buffer = makeIR(ac, 2.2, 0.5); const wet = ac.createGain(); wet.gain.value = 0.35; const dry = ac.createGain(); dry.gain.value = 0.65; bp.connect(dry); bp.connect(rev); rev.connect(wet); wet.connect(master); dry.connect(master);
+            const spb = 60/bpm; const barDur = 4*spb; const bars = Math.ceil(durationSec / barDur);
+            for (let b=0; b<bars; b++){
+                const when = b*barDur;
+                const ch = parseChord(chordForKeyG(b)); const tones = chordTones(ch.root, ch.type).slice(0,3);
+                tones.forEach((semi,i)=>{
+                    const n = noteShift(ch.root, semi) + (i===0? '4':'5');
+                    bowed(ac, bp, noteFreq(n), when+0.02, Math.min(barDur*0.9, 3.0), -18);
+                });
+            }
+            return ac.startRendering();
+        }
+
+        async function renderPianoChords(bpm, durationSec, key){
+            const sr = 44100; const chs = 2; const len = Math.ceil(sr*durationSec);
+            const ac = new OfflineAudioContext(chs, len, sr);
+            const master = ac.createGain(); master.gain.value = 0.65; master.connect(ac.destination);
+            const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 5000; lp.connect(master);
+            const rev = ac.createConvolver(); rev.buffer = makeIR(ac, 1.6, 0.45); const wet = ac.createGain(); wet.gain.value = 0.28; const dry = ac.createGain(); dry.gain.value = 0.72; lp.connect(dry); lp.connect(rev); rev.connect(wet); wet.connect(master); dry.connect(master);
+            const spb = 60/bpm; const barDur = 4*spb; const bars = Math.ceil(durationSec / barDur);
+            for (let b=0; b<bars; b++){
+                const ch = parseChord(chordForKeyG(b)); const tones = chordTones(ch.root, ch.type);
+                // Play on beats 1 and 3 as block chords
+                [0,2].forEach(bt => {
+                    const when = b*barDur + bt*spb;
+                    tones.forEach((semi,i)=>{
+                        const n = noteShift(ch.root, semi) + (i<2? '4':'5');
+                        pianoNote(ac, lp, noteFreq(n), when + i*0.01, 0.9, -16);
+                    });
+                });
+            }
+            return ac.startRendering();
+        }
+
+        async function renderLightDrums(bpm, durationSec){
+            const sr = 44100; const chs = 2; const len = Math.ceil(sr*durationSec);
+            const ac = new OfflineAudioContext(chs, len, sr);
+            const master = ac.createGain(); master.gain.value = 0.7; master.connect(ac.destination);
+            const spb = 60/bpm; const barDur = 4*spb; const bars = Math.ceil(durationSec / barDur);
+            const kick = (t)=>{ const o=ac.createOscillator(); o.type='sine'; const g=ac.createGain(); g.gain.value=1; o.connect(g); g.connect(master); o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(50, t+0.12); g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.18); o.start(t); o.stop(t+0.2); };
+            const sn = (t)=>{ const n=ac.createBuffer(1, sr*0.2, sr); const d=n.getChannelData(0); for(let i=0;i<d.length;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.5);} const s=ac.createBufferSource(); s.buffer=n; const bf=ac.createBiquadFilter(); bf.type='highpass'; bf.frequency.value=1200; const g=ac.createGain(); g.gain.value=0.5; s.connect(bf); bf.connect(g); g.connect(master); s.start(t); s.stop(t+0.12); };
+            const hat = (t)=>{ const n=ac.createBuffer(1, sr*0.05, sr); const d=n.getChannelData(0); for(let i=0;i<d.length;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);} const s=ac.createBufferSource(); s.buffer=n; const bf=ac.createBiquadFilter(); bf.type='highpass'; bf.frequency.value=6000; const g=ac.createGain(); g.gain.value=0.25; s.connect(bf); bf.connect(g); g.connect(master); s.start(t); s.stop(t+0.05); };
+            for (let b=0; b<bars; b++){
+                const base = b*barDur;
+                for (let i=0;i<4;i++){
+                    const t = base + i*spb;
+                    kick(t); if (i%2===1) sn(t); hat(t); // light hats on each beat, snare on 2/4
+                }
+            }
+            return ac.startRendering();
+        }
+
+        // Sound design helpers for offline
+        function noteFreq(n){ // e.g., 'C#4'
+            const m = String(n).match(/^([A-G][#b]?)(-?\d)$/); const A4=440; if(!m) return A4;
+            const map={C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11}; const root=map[m[1]]??9; const oct=parseInt(m[2]); const semis = root + (oct-4)*12 - 9; return A4 * Math.pow(2, semis/12);
+        }
+        function makeIR(ac, seconds, decay){ const len=Math.floor(ac.sampleRate*seconds); const ir=ac.createBuffer(2,len,ac.sampleRate); for(let ch=0; ch<2; ch++){ const d=ir.getChannelData(ch); for(let i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len, decay*2.2); } } return ir; }
+        function envGain(ac, node, t, a=0.01, d=0.12, s=0.0, r=0.2, peak=0.5){ node.gain.setValueAtTime(0, t); node.gain.linearRampToValueAtTime(peak, t+a); node.gain.linearRampToValueAtTime(peak*s, t+a+d); node.gain.setTargetAtTime(0, t+a+d, r); }
+        function pluck(ac, dest, freq, when, dur=0.35, gainDb=-14){ const o1=ac.createOscillator(); o1.type='sawtooth'; o1.frequency.value = freq; const o2=ac.createOscillator(); o2.type='triangle'; o2.frequency.value = freq*2; const g=ac.createGain(); const v=Math.pow(10, gainDb/20); envGain(ac, g, when, 0.004, Math.min(0.08, dur*0.25), 0.0, Math.min(0.25, dur*0.6), v); const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value = Math.min(6000, freq*6); f.Q.value=0.8; o1.connect(f); o2.connect(f); f.connect(g); g.connect(dest); o1.start(when); o2.start(when); o1.stop(when+dur+0.3); o2.stop(when+dur+0.3); }
+        function bowed(ac, dest, freq, when, dur=2.0, gainDb=-18){ const o=ac.createOscillator(); o.type='sawtooth'; o.frequency.value=freq; const lfo=ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=5.5; const lfoAmt=ac.createGain(); lfoAmt.gain.value = freq*0.007; lfo.connect(lfoAmt); lfoAmt.connect(o.frequency); const g=ac.createGain(); const v=Math.pow(10, gainDb/20); envGain(ac, g, when, 0.12, 0.3, 0.85, 0.2, v); o.connect(g); g.connect(dest); o.start(when); lfo.start(when); o.stop(when+dur+0.2); lfo.stop(when+dur+0.2); }
+        function pianoNote(ac, dest, freq, when, dur=1.2, gainDb=-16){ const o1=ac.createOscillator(); o1.type='sine'; o1.frequency.value=freq; const o2=ac.createOscillator(); o2.type='triangle'; o2.frequency.value=freq*2; const g=ac.createGain(); const v=Math.pow(10, gainDb/20); envGain(ac, g, when, 0.004, 0.25, 0.0, Math.min(0.5, dur), v); const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=6500; o1.connect(f); o2.connect(f); f.connect(g); g.connect(dest); o1.start(when); o2.start(when); o1.stop(when+dur+0.3); o2.stop(when+dur+0.3); }
     </script>
 
     <!-- 🔒 OWNER ACCESS CODE OVERLAY -->

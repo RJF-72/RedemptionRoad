@@ -59,6 +59,7 @@
     </div>
   </div>
   <script src="./config.js"></script>
+  <script src="./voice.js"></script>
   <script>
     const btn = document.getElementById('run');
     const out = document.getElementById('out');
@@ -148,6 +149,20 @@
         btn.disabled = false;
       }
     });
+  </script>
+  <script>
+    // Voice commands for Audio Authenticity
+    (function(){
+      if (!window.SOTAVoice) return;
+      SOTAVoice.init({ tts: false });
+      const setProfile = (name) => { const sel=document.getElementById('profile'); if(!sel) return; const opt=Array.from(sel.options).find(o=>o.value.toLowerCase()===name); if(opt){ sel.value=opt.value; sel.dispatchEvent(new Event('change')); } };
+      SOTAVoice.registerCommands([
+        { pattern: /^(?:upload|select) reference$/i, description: 'Choose reference WAV', handler: ()=>{ const inp=document.getElementById('ref'); if(inp) inp.click(); } },
+        { pattern: /^(?:upload|select) (?:candidate|compare)$/i, description: 'Choose candidate WAV', handler: ()=>{ const inp=document.getElementById('cand'); if(inp) inp.click(); } },
+        { pattern: /^set profile (melodic|percussive|general)$/i, description: 'Set analysis profile', handler: (m)=> setProfile(m[1]) },
+        { pattern: /^(?:run|start|compare)$/i, description: 'Run authenticity comparison', handler: ()=>{ const b=document.getElementById('run'); b && b.click(); } },
+      ]);
+    })();
   </script>
   <script src="./composer-shim.js"></script>
 </body>

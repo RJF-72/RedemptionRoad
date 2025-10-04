@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOTA Script-to-Video Engine - AI-Powered Video Generation from Scripts</title>
     <script src="config.js"></script>
+    <script src="voice.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
         
@@ -583,9 +584,21 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* ✅ Status bar and toast */
+        .status-bar { position: sticky; top: 0; z-index: 1200; margin: 0; padding: 10px 16px; border-bottom: 1px solid rgba(0,212,255,0.25); font-weight: 700; }
+        .status-info { background: rgba(0,212,255,0.12); color: #00E5FF; }
+        .status-warn { background: rgba(250,204,21,0.12); color: #facc15; }
+        .status-error { background: rgba(239,68,68,0.12); color: #f87171; }
+        .status-success { background: rgba(34,197,94,0.12); color: #86efac; }
+        .toast-container { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1500; }
+        .toast { background: rgba(0,0,0,0.75); border: 1px solid rgba(0,212,255,0.35); color: #E6F3FF; padding: 10px 14px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 360px; }
+        .toast.warn { border-color: rgba(250,204,21,0.45); color: #fde68a; }
+        .toast.error { border-color: rgba(248,113,113,0.45); color: #fecaca; }
+        .toast.success { border-color: rgba(34,197,94,0.45); color: #bbf7d0; }
     </style>
 </head>
 <body>
+    <div id="statusBar" class="status-bar status-info" style="display:none"></div>
     <!-- 🎬 HEADER -->
     <header class="header">
         <div class="header-content">
@@ -622,16 +635,16 @@
             
             <!-- Script Type Selector -->
             <div class="script-type-selector">
-                <div class="script-type active" onclick="selectScriptType('narrative')">
+                <div class="script-type active" onclick="selectScriptType('narrative', event)">
                     🎭 Narrative
                 </div>
-                <div class="script-type" onclick="selectScriptType('commercial')">
+                <div class="script-type" onclick="selectScriptType('commercial', event)">
                     📺 Commercial
                 </div>
-                <div class="script-type" onclick="selectScriptType('educational')">
+                <div class="script-type" onclick="selectScriptType('educational', event)">
                     🎓 Educational
                 </div>
-                <div class="script-type" onclick="selectScriptType('promotional')">
+                <div class="script-type" onclick="selectScriptType('promotional', event)">
                     📢 Promotional
                 </div>
             </div>
@@ -916,16 +929,16 @@ Use clear scene markers, timing, and detailed descriptions for best AI interpret
             <div class="style-section">
                 <h3 style="color: #BA55D3; margin-bottom: 15px;">🎨 Generation Style</h3>
                 <div class="style-grid">
-                    <div class="style-option active" onclick="selectGenerationStyle('realistic')">
+                    <div class="style-option active" onclick="selectGenerationStyle('realistic', event)">
                         📷 Realistic
                     </div>
-                    <div class="style-option" onclick="selectGenerationStyle('animated')">
+                    <div class="style-option" onclick="selectGenerationStyle('animated', event)">
                         🎨 Animated
                     </div>
-                    <div class="style-option" onclick="selectGenerationStyle('artistic')">
+                    <div class="style-option" onclick="selectGenerationStyle('artistic', event)">
                         🖼️ Artistic
                     </div>
-                    <div class="style-option" onclick="selectGenerationStyle('cartoon')">
+                    <div class="style-option" onclick="selectGenerationStyle('cartoon', event)">
                         🎪 Cartoon
                     </div>
                 </div>
@@ -1006,8 +1019,45 @@ Use clear scene markers, timing, and detailed descriptions for best AI interpret
             </div>
         </section>
     </main>
+    <div id="toastContainer" class="toast-container"></div>
 
     <script>
+        // 🔔 Status + toast helpers
+        function setStatus(message, type='info', persist=false){
+            const bar = document.getElementById('statusBar');
+            bar.className = `status-bar status-${type}`; bar.textContent = message; bar.style.display = 'block';
+            if (!persist) { clearTimeout(setStatus._t); setStatus._t = setTimeout(()=>{ bar.style.display='none'; }, 4000); }
+        }
+        function showToast(message, type='info', timeout=4000){
+            const cont = document.getElementById('toastContainer');
+            const t = document.createElement('div'); t.className = `toast ${type}`; t.textContent = message;
+            cont.appendChild(t); setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; }, timeout-300); setTimeout(()=>t.remove(), timeout);
+        }
+        // Voice commands for Script-to-Video Engine
+        (function(){
+            if (!window.SOTAVoice) return;
+            SOTAVoice.init({ tts: false });
+
+            const clickByOnclickContains = (substr) => {
+                const el = Array.from(document.querySelectorAll('[onclick]')).find(e => (e.getAttribute('onclick')||'').includes(substr));
+                if (el) el.click();
+            };
+
+            SOTAVoice.registerCommands([
+                { pattern: /^(?:play|start) preview$/i, description: 'Play preview', handler: () => { try { const btn=document.getElementById('btnPlayPause'); if(btn&&btn.textContent.includes('Play')) btn.click(); else togglePreviewPlay(); } catch(_){} } },
+                { pattern: /^(?:pause|stop) preview$/i, description: 'Pause preview', handler: () => { try { const btn=document.getElementById('btnPlayPause'); if(btn&&btn.textContent.includes('Pause')) btn.click(); else stopPreview(); } catch(_){} } },
+                { pattern: /^stop$/i, description: 'Stop preview', handler: () => { try { stopPreview(); } catch(_){} } },
+                { pattern: /^(?:build|generate) (?:from )?script$/i, description: 'Build & Preview from script', handler: () => { try { generateFromScript(); } catch(_){} } },
+                { pattern: /^export (?:video|webm)$/i, description: 'Export WebM', handler: () => { try { exportVideo(); } catch(_){} } },
+                { pattern: /^preview script$/i, description: 'Preview script', handler: () => { try { previewScript(); } catch(_){} } },
+                { pattern: /^set duration (15|30|60|90)(?:s| seconds?)?$/i, description: 'Set video duration', handler: (m) => { const sel=document.getElementById('videoDuration'); if(sel){ sel.value=m[1]; sel.dispatchEvent(new Event('change')); } } },
+                { pattern: /^set style (realistic|animated|artistic|cartoon)$/i, description: 'Set generation style', handler: (m) => clickByOnclickContains(`selectGenerationStyle('${m[1]}')`) },
+                { pattern: /^(?:upload|set) audio$/i, description: 'Upload audio for timing', handler: () => { const inp=document.getElementById('scriptAudioInput'); if(inp) inp.click(); } },
+                { pattern: /^(?:upload|load) lyrics$/i, description: 'Upload lyrics file', handler: () => { const inp=document.getElementById('lyricsFile'); if(inp) inp.click(); } },
+                { pattern: /^enable lyrics$/i, description: 'Enable lyrics overlay', handler: () => { const sel=document.getElementById('lyricsEnabled'); if(sel){ sel.value='on'; sel.dispatchEvent(new Event('change')); } } },
+                { pattern: /^disable lyrics$/i, description: 'Disable lyrics overlay', handler: () => { const sel=document.getElementById('lyricsEnabled'); if(sel){ sel.value='off'; sel.dispatchEvent(new Event('change')); } } },
+            ]);
+    })();
         // Centralized backend URL (via config.js). Defaults to same-origin for Netlify proxy.
         const BACKEND_URL = (typeof window !== 'undefined' && window.SOTA_BACKEND_URL !== undefined)
             ? window.SOTA_BACKEND_URL
@@ -1103,17 +1153,18 @@ Use clear scene markers, timing, and detailed descriptions for best AI interpret
         }
 
         // 📝 SCRIPT TYPE SELECTION
-        function selectScriptType(type) {
+        function selectScriptType(type, ev) {
             currentScriptType = type;
             
             // Update UI
             document.querySelectorAll('.script-type').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            const src = ev && ev.target ? ev.target : (typeof event !== 'undefined' && event.target ? event.target : null);
+            if (src) src.classList.add('active');
             
             updatePlaceholder();
         }
 
-        function updatePlaceholder() {
+        function updatePlaceholder(kind) {
             const textarea = document.getElementById('scriptContent');
             const placeholders = {
                 narrative: `Enter your narrative script here...
@@ -1241,7 +1292,8 @@ DIALOGUE: "Join thousands who've already made the switch"
 MUSIC: Urgent, motivating finale`
             };
             
-            textarea.placeholder = placeholders[type] || placeholders.narrative;
+            const key = kind || currentScriptType || 'narrative';
+            textarea.placeholder = placeholders[key] || placeholders.narrative;
         }
 
         // 📋 TEMPLATE LOADING
@@ -1368,23 +1420,24 @@ DIALOGUE: "Next time, I'm hiring a professional"`
             const scriptContent = document.getElementById('scriptContent');
             if (templates[templateType]) {
                 scriptContent.value = templates[templateType];
-                alert(`📋 ${templateType.replace('-', ' ').toUpperCase()} template loaded!`);
+                showToast(`📋 ${templateType.replace('-', ' ').toUpperCase()} template loaded!`, 'success');
             }
         }
 
         // 🎨 STYLE SELECTION
-        function selectGenerationStyle(style) {
+        function selectGenerationStyle(style, ev) {
             currentGenerationStyle = style;
             
             // Update UI
             document.querySelectorAll('.style-option').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            const src = ev && ev.target ? ev.target : (typeof event !== 'undefined' && event.target ? event.target : null);
+            if (src) src.classList.add('active');
         }
 
         // 🚀 VIDEO GENERATION
         function generateFromScript() {
             const scriptContent = document.getElementById('scriptContent').value.trim();
-            if (!scriptContent) { alert('⚠️ Please enter a script first!'); return; }
+            if (!scriptContent) { setStatus('⚠️ Please enter a script first!', 'warn'); return; }
             const fpsSel=document.getElementById('scriptFps');
             const palSel=document.getElementById('scriptPalette');
             scriptPlayback.fps = fpsSel ? parseInt(fpsSel.value||'30') : 30;
@@ -1396,6 +1449,7 @@ DIALOGUE: "Next time, I'm hiring a professional"`
             startPreview();
             updateStage(100,'✅ Preview ready. Use Export to record.',5);
             isGenerating = false;
+            showToast('🎬 Preview ready', 'success');
         }
 
         function simulateScriptGeneration() { /* removed: using real preview/export */ }
@@ -1471,16 +1525,17 @@ DIALOGUE: "Next time, I'm hiring a professional"`
         // 👁️ PREVIEW & EXPORT
         function previewScript() {
             const scriptContent = document.getElementById('scriptContent').value.trim();
-            if (!scriptContent) { alert('⚠️ Please enter a script first!'); return; }
+            if (!scriptContent) { setStatus('⚠️ Please enter a script first!', 'warn'); return; }
             const fpsSel=document.getElementById('scriptFps');
             const palSel=document.getElementById('scriptPalette');
             scriptPlayback.fps = fpsSel ? parseInt(fpsSel.value||'30') : 30;
             scriptPlayback.palette = palSel ? palSel.value : 'vibrant';
             scriptScenes = parseScriptToScenes(scriptContent); generateSceneListFromScript(); startPreview();
+            showToast('👁️ Script previewed', 'info');
         }
 
         async function exportVideo() {
-            if(!scriptScenes.length){ alert('⚠️ Generate a preview first.'); return; }
+            if(!scriptScenes.length){ setStatus('⚠️ Generate a preview first.', 'warn'); return; }
             await startAudioIfAny();
             const cvs=ensureCanvas(); const stream=cvs.captureStream(scriptPlayback.fps||30);
             if(scriptAudio.ctx && scriptAudio.buf){ const dest=scriptAudio.ctx.createMediaStreamDestination();
@@ -1488,14 +1543,24 @@ DIALOGUE: "Next time, I'm hiring a professional"`
                 const src=scriptAudio.ctx.createBufferSource(); src.buffer=scriptAudio.buf; src.connect(scriptAudio.ctx.destination); src.connect(dest); scriptAudio.src=src; src.start();
                 dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
             }
-            const mr=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'}); recorder.mr=mr; recorder.chunks=[]; recorder.recording=true; 
-            mr.ondataavailable=e=>{ if(e.data && e.data.size>0) recorder.chunks.push(e.data); };
-            mr.onstop=()=>{ const blob=new Blob(recorder.chunks,{type:'video/webm'}); const url=URL.createObjectURL(blob); recorder.downloadUrl=url; recorder.recording=false; const vp=document.getElementById('videoPreview'); const link=document.createElement('a'); link.href=url; link.download='script-video.webm'; link.textContent='Download Video'; link.className='sota-button'; link.style.display='inline-block'; link.style.marginTop='10px'; vp.appendChild(link); updateStage(100,'✅ Export complete',5); };
-            mr.start();
+            try {
+                const chosenMime = (window.MediaRecorder && MediaRecorder.isTypeSupported && (
+                    MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' :
+                    (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm')
+                )) || 'video/webm';
+                const mr=new MediaRecorder(stream,{mimeType: chosenMime}); recorder.mr=mr; recorder.chunks=[]; recorder.recording=true;
+                mr.ondataavailable=e=>{ if(e.data && e.data.size>0) recorder.chunks.push(e.data); };
+                mr.onstop=()=>{ const blob=new Blob(recorder.chunks,{type:chosenMime.split(';')[0]||'video/webm'}); const url=URL.createObjectURL(blob); try{ if(recorder.downloadUrl) URL.revokeObjectURL(recorder.downloadUrl); }catch(_){} recorder.downloadUrl=url; recorder.recording=false; const vp=document.getElementById('videoPreview'); const link=document.createElement('a'); link.href=url; link.download='script-video.webm'; link.textContent='Download Video'; link.className='sota-button'; link.style.display='inline-block'; link.style.marginTop='10px'; vp.appendChild(link); updateStage(100,'✅ Export complete',5); showToast('💾 Export complete', 'success'); };
+                mr.start();
+            } catch(e) {
+                console.error(e);
+                setStatus('❌ Recording/export failed: '+(e&&e.message?e.message:e), 'error', true);
+                return;
+            }
             const fps=scriptPlayback.fps||30; const ctx=cvs.getContext('2d'); const total=scriptScenes.reduce((a,s)=>a+(s.dur||8),0); const totalFrames=Math.floor(total*fps);
             const hues=scriptScenes.map(s=>pickPaletteHue(s,scriptPlayback.palette));
             let frame=0; updateStage(0,'🎥 Exporting…',5);
-            const loop=()=>{ if(!recorder.recording) return; const t=frame/fps; if(frame>=totalFrames){ mr.stop(); return; }
+            const loop=()=>{ if(!recorder.recording) return; const t=frame/fps; if(frame>=totalFrames){ try{ recorder.mr && recorder.mr.stop(); }catch(_){} return; }
                 let acc=0, idx=0; for(let i=0;i<scriptScenes.length;i++){ const d=scriptScenes[i].dur||8; if(t<acc+d){ idx=i; break; } acc+=d; }
                 const sc=scriptScenes[idx]; const localT=t - scriptScenes.slice(0,idx).reduce((a,s)=>a+(s.dur||8),0);
                 ctx.clearRect(0,0,cvs.width,cvs.height); drawSceneFrame(ctx,cvs.width,cvs.height,sc,localT,sc.dur||8,hues[idx]);
@@ -1574,20 +1639,19 @@ DIALOGUE: "Next time, I'm hiring a professional"`
         function saveScript() {
             const scriptContent = document.getElementById('scriptContent').value.trim();
             
-            if (!scriptContent) {
-                alert('⚠️ No script content to save!');
-                return;
-            }
-            
-            alert('💾 Script saved successfully!\n\nIncludes:\n• Full script content\n• Generation settings\n• Scene timing\n• Style preferences');
+            if (!scriptContent) { setStatus('⚠️ No script content to save!', 'warn'); return; }
+            try { localStorage.setItem('sota:script:last', scriptContent); showToast('💾 Script saved locally', 'success'); }
+            catch(_) { setStatus('Could not save script to localStorage', 'error'); }
         }
 
-        function loadScript() {
-            alert('📁 Load script options:\n\n• Recent scripts\n• Template library\n• Import from file\n• Collaborative projects');
-        }
+        function loadScript() { const v = localStorage.getItem('sota:script:last'); if(v){ document.getElementById('scriptContent').value = v; showToast('📁 Loaded last saved script', 'info'); } else { setStatus('No saved script found', 'warn'); } }
 
         function shareProject() {
-            alert('📤 Share project:\n\n🔗 Generate shareable link\n📧 Email collaboration invite\n💾 Export project file\n🌐 Publish to gallery');
+            const cvs = ensureCanvas(); if(!cvs){ setStatus('Generate a preview before sharing.', 'warn'); return; }
+            const url = cvs.toDataURL('image/png');
+            const box = document.createElement('div'); box.style.position='fixed'; box.style.right='20px'; box.style.bottom='20px'; box.style.zIndex='1600';
+            const a = document.createElement('a'); a.href=url; a.download='preview.png'; a.textContent='Download Preview Image'; a.className='sota-button';
+            box.appendChild(a); document.body.appendChild(box); showToast('📤 Share: preview image ready to download', 'info'); setTimeout(()=>box.remove(), 6000);
         }
 
         // 🚀 STARTUP ANIMATION

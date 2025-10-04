@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOTA Music Video Generator - Revolutionary AI-Powered Video Creation</title>
+    <title>Music Video Generator</title>
     <script src="config.js"></script>
+    <script src="voice.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
         
@@ -669,32 +670,90 @@
             background: rgba(56,189,248,0.2);
             color: #e6f9ff;
         }
+
+        /* ✅ Status bar and toast notifications */
+        .status-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1200;
+            margin: 0;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(103,232,249,0.25);
+            font-weight: 700;
+        }
+    .status-info { background: rgba(6,182,212,0.12); color: #67e8f9; }
+        .status-warn { background: rgba(234,179,8,0.12); color: #facc15; }
+        .status-error { background: rgba(239,68,68,0.12); color: #f87171; }
+        .status-success { background: rgba(34,197,94,0.12); color: #86efac; }
+
+        .toast-container {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1500;
+        }
+        .toast {
+            background: rgba(0,0,0,0.75);
+            border: 1px solid rgba(103,232,249,0.35);
+            color: #e6f9ff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 360px;
+        }
+        .toast.warn { border-color: rgba(250,204,21,0.45); color: #fde68a; }
+        .toast.error { border-color: rgba(248,113,113,0.45); color: #fecaca; }
+        .toast.success { border-color: rgba(34,197,94,0.45); color: #bbf7d0; }
+
+        /* 🪟 Simple modal */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            display: none; align-items: center; justify-content: center; z-index: 1400;
+        }
+        .modal {
+            width: min(720px, 92vw);
+            background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(103,232,249,0.35);
+            border-radius: 16px; padding: 18px;
+            color: #e6f9ff;
+        }
+        .modal h3 { margin: 0 0 10px; color: #FFD700; }
+        .modal .close-btn {
+            float: right; background: transparent; border: 1px solid rgba(103,232,249,0.35);
+            color: #67e8f9; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+        }
     </style>
 </head>
 <body>
+    <div id="statusBar" class="status-bar status-info" style="display:none"></div>
     <!-- � NAVIGATION HEADER -->
     <div class="navigation-header">
         <div class="nav-left">
-            <a href="index.html" class="nav-hub-btn">🏠 SOTA Hub</a>
+            <a href="index.html" class="nav-hub-btn">🏠 Hub</a>
             <div class="nav-title-section">
                 <div class="nav-icon">🎬</div>
                 <div>
-                    <h1 class="nav-title">SOTA Music Video Generator</h1>
+                    <h1 class="nav-title">Music Video Generator</h1>
                     <p class="nav-subtitle">AI-Powered Video Creation</p>
                 </div>
             </div>
         </div>
         <div class="nav-right">
             <div class="license-badge">🔒 Licensed Software</div>
-            <button class="license-btn" onclick="alert('🔒 SOTA Video Generation License\\n\\nPrice: $399/year\\n\\n✅ Features:\\n• AI Music Video Creation\\n• Professional Editing Tools\\n• 4K/8K Export Rights\\n• Commercial Video Licensing\\n• Advanced Effect Library\\n\\n⚖️ Strict Licensing Required')">View License</button>
+            <button class="license-btn" onclick="openLicenseModal()">View License</button>
+            <button class="license-btn" title="Ping API health" onclick="checkHealth()">🔎 Check API</button>
+            <button class="license-btn" title="Configure API (Shift + A)" onclick="openApiSettings()">⚙ API</button>
         </div>
     </div>
-
+    
     <!-- �🎬 HEADER -->
     <header class="header">
         <div class="header-content">
             <div class="logo-section">
-                <div class="sota-logo">🎵 SOTA Music Video Generator</div>
+                <div class="sota-logo">🎵 Music Video Generator</div>
                 <div style="color: rgba(255,215,0,0.8); font-size: 14px;">
                     Revolutionary AI-Powered Music Video Creation
                 </div>
@@ -718,6 +777,17 @@
 
     <!-- 🎛️ MAIN INTERFACE -->
     <main class="main-container">
+        <section class="music-input-panel" style="grid-column: 1 / -1;">
+            <details>
+                <summary style="cursor:pointer;font-weight:800;color:#67e8f9">Directions</summary>
+                <div style="margin-top:10px;color:#cfe9ff;line-height:1.6">
+                    • Upload an audio file, choose Mode/Style/Palette.<br/>
+                    • Click Generate Video to use your configured backend. If no API is set, use the Swarm local generator via the “Open Swarm (Local)” button.<br/>
+                    • Preview plays inline; use Export to download as WebM.<br/>
+                    • API base can be configured with ⚙ API (or Shift + A). Health check is available via 🔎 Check API.
+                </div>
+            </details>
+        </section>
         <!-- 📁 LEFT PANEL - MUSIC INPUT -->
         <section class="music-input-panel">
             <h2 class="panel-title">🎵 Music Input & Metadata</h2>
@@ -902,6 +972,8 @@ Be specific about timing, scenes, and visual elements."
                 <button class="sota-button secondary" onclick="previewVideo()">
                     👁️ Preview
                 </button>
+                <a class="sota-button secondary" href="SIVideoGenerator.html" title="Open the improved Swarm generator (no backend)">🌀 Open Swarm (Local)</a>
+                <button class="sota-button secondary" title="Run local smoke test without backend" onclick="runSmokeTest()">🧪 Smoke Test</button>
             </div>
         </section>
 
@@ -1015,14 +1087,94 @@ Be specific about timing, scenes, and visual elements."
         </section>
     </main>
 
+        <!-- License Modal -->
+        <div id="licenseModal" class="modal-backdrop" onclick="if(event.target===this) closeLicenseModal()">
+            <div class="modal">
+                <button class="close-btn" onclick="closeLicenseModal()">✕</button>
+                <h3>🔒 SOTA Video Generation License</h3>
+                <div style="white-space: pre-line; line-height: 1.6;">
+                    Price: $399/year
+
+                    ✅ Features:
+                    • AI Music Video Creation
+                    • Professional Editing Tools
+                    • 4K/8K Export Rights
+                    • Commercial Video Licensing
+                    • Advanced Effect Library
+
+                    ⚖️ Strict Licensing Required
+                </div>
+            </div>
+        </div>
+
+        <div id="toastContainer" class="toast-container"></div>
+
+        <!-- Smoke/Diagnostics Overlay -->
+        <div id="diagOverlay" class="modal-backdrop" style="display:none">
+            <div class="modal">
+                <button class="close-btn" onclick="document.getElementById('diagOverlay').style.display='none'">✕</button>
+                <h3>🧪 Music Video Generator — Smoke Diagnostics</h3>
+                <div id="diagContent" style="font-size:12px; line-height:1.6; white-space:pre-wrap"></div>
+            </div>
+        </div>
+
     <script>
         // 🎵 SOTA Music Video Generator JavaScript
-        let currentStyle = 'cinematic';
+    let currentStyle = 'cinematic';
         let currentPalette = 'warm';
         let currentAudio = null;
         let isGenerating = false;
         let audioContext = null;
         let analyser = null;
+        let currentMode = 'auto';
+    // Local mock switch for smoke tests only
+    let useLocalMock = false;
+
+        // 🔔 Non-blocking status + toasts
+        function setStatus(message, type = 'info', persist = false){
+            const bar = document.getElementById('statusBar');
+            bar.className = `status-bar status-${type}`;
+            bar.textContent = message;
+            bar.style.display = 'block';
+            if (!persist) {
+                clearTimeout(setStatus._t);
+                setStatus._t = setTimeout(()=>{ bar.style.display = 'none'; }, 4000);
+            }
+        }
+        function showToast(message, type = 'info', timeout = 4000){
+            const cont = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `toast ${type}`;
+            t.textContent = message;
+            cont.appendChild(t);
+            setTimeout(()=>{ t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, timeout-300);
+            setTimeout(()=>{ t.remove(); }, timeout);
+        }
+
+        // Backend helpers via config/composer-shim
+        function apiBase(){
+            try { if (typeof window.SOTA_getBackend === 'function') { const b = SOTA_getBackend(); if (b!==undefined) return b||''; } } catch(_){ }
+            try { if (typeof window.SOTA_getBackendURL === 'function') { const b = SOTA_getBackendURL(); if (b!==undefined) return b||''; } } catch(_){ }
+            return (typeof window !== 'undefined' && window.SOTA_BACKEND_URL !== undefined) ? (window.SOTA_BACKEND_URL||'') : '';
+        }
+        function openApiSettings(){
+            try { if (typeof window.SOTA_openApiModal === 'function') { SOTA_openApiModal(); return; } } catch(_){ }
+            alert('Set API base: Press Shift + A to open the API settings, or set via URL ?api=http://host:port');
+        }
+        async function checkHealth(){
+            const base = apiBase();
+            try{
+                const r = await fetch((base||'') + '/api/health', { cache:'no-store' });
+                if(!r.ok) throw new Error('HTTP '+r.status);
+                setStatus(`✅ API healthy at ${base||'(same-origin)'}`, 'success');
+            }catch(err){
+                if (!base) setStatus('❌ API base is not set. Click “API” (or press Shift + A).', 'error', true);
+                else setStatus(`❌ API unreachable at ${base}`, 'error', true);
+            }
+        }
+
+        function openLicenseModal(){ document.getElementById('licenseModal').style.display='flex'; }
+        function closeLicenseModal(){ document.getElementById('licenseModal').style.display='none'; }
 
         // 🎛️ INITIALIZATION
         document.addEventListener('DOMContentLoaded', () => {
@@ -1101,7 +1253,7 @@ Be specific about timing, scenes, and visual elements."
             // Update waveform
             generateWaveformBars();
             
-            alert('🎵 Audio file loaded! Ready to generate your music video.');
+            showToast('🎵 Audio file loaded! Ready to generate your music video.', 'success');
         }
 
         function startAudioVisualization(file) {
@@ -1138,15 +1290,15 @@ Be specific about timing, scenes, and visual elements."
         // 🎬 MODE SELECTION
         function selectMode(mode) {
             currentMode = mode;
-            
-            // Update UI
+            // Update UI selection safely
             document.querySelectorAll('.generation-mode').forEach(el => el.classList.remove('active'));
-            event.target.closest('.generation-mode').classList.add('active');
-            
-            // Show/hide relevant sections
+            // Find the card by mode and add active
+            const idx = { auto:0, script:1, template:2 }[mode];
+            const cards = document.querySelectorAll('.generation-mode');
+            if (cards[idx]) cards[idx].classList.add('active');
+            // Toggle sections
             const scriptInput = document.getElementById('scriptInput');
             const sceneEditor = document.getElementById('sceneEditor');
-            
             if (mode === 'script') {
                 scriptInput.style.display = 'block';
                 sceneEditor.style.display = 'none';
@@ -1154,35 +1306,39 @@ Be specific about timing, scenes, and visual elements."
                 scriptInput.style.display = 'none';
                 sceneEditor.style.display = 'none';
             }
+            setStatus(`Mode set: ${mode}`, 'info');
         }
 
         // 🎨 STYLE SELECTION
         function selectStyle(style) {
             currentStyle = style;
             document.querySelectorAll('.style-option').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            // Try to activate the first matching option by text content
+            const opt = Array.from(document.querySelectorAll('.style-option')).find(o=>o.textContent.trim().toLowerCase().includes(style));
+            if (opt) opt.classList.add('active');
+            setStatus(`Style: ${style}`, 'info');
         }
 
         function selectPalette(palette) {
             currentPalette = palette;
-            const paletteOptions = event.target.closest('.style-section').querySelectorAll('.style-option');
+            const section = Array.from(document.querySelectorAll('.style-section')).find(s=>s.textContent.includes('Color Palette'));
+            const paletteOptions = section ? section.querySelectorAll('.style-option') : [];
             paletteOptions.forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            const opt = Array.from(paletteOptions).find(o=>o.textContent.toLowerCase().includes(palette));
+            if (opt) opt.classList.add('active');
+            setStatus(`Palette: ${palette}`, 'info');
         }
 
-        // 🚀 VIDEO GENERATION
-                const BACKEND_URL = (typeof window !== 'undefined' && window.SOTA_BACKEND_URL !== undefined)
-                    ? window.SOTA_BACKEND_URL
-                    : '';
+    // 🚀 VIDEO GENERATION
 
         async function generateVideo() {
-            if (!currentAudio) {
-                alert('⚠️ Please upload an audio file first!');
-                return;
-            }
-            
-            if (isGenerating) {
-                alert('🎬 Video generation already in progress!');
+            if (!currentAudio) { setStatus('⚠️ Please upload an audio file first!', 'warn'); return; }
+            if (isGenerating) { setStatus('🎬 Video generation already in progress!', 'info'); return; }
+            const base = apiBase();
+            if (!useLocalMock && !base) {
+                // Seamless local fallback: push users to the Swarm generator which is fully client-side
+                setStatus('ℹ️ No API configured — opening local Swarm generator…', 'info');
+                try { window.location.href = 'SIVideoGenerator.html'; } catch(_) {}
                 return;
             }
             
@@ -1195,22 +1351,32 @@ Be specific about timing, scenes, and visual elements."
             const progressText = document.getElementById('progressText');
 
             try {
+                if (useLocalMock) {
+                    // Simulate backend locally for smoke runs
+                    await runLocalMockGeneration(progressFill, progressText);
+                    return;
+                }
                 const fd = new FormData();
                 fd.append('audio', currentAudio);
                 fd.append('genre', document.getElementById('musicGenre').value);
                 fd.append('style', currentStyle);
                 fd.append('palette', currentPalette);
 
-                const startResp = await fetch(`${BACKEND_URL}/api/generate/start`, {
+                const startResp = await fetch(`${base}/api/generate/start`, {
                     method: 'POST',
-                    body: fd
+                    body: fd,
+                    headers: (function(){
+                        const h = {};
+                        try{ if (window.SOTAAuth && SOTAAuth.isOwner && SOTAAuth.isOwner()) h['X-Owner']='1'; }catch(_){ }
+                        return h;
+                    })()
                 });
                 if (!startResp.ok) throw new Error('Failed to start generation');
                 const { job_id } = await startResp.json();
 
                 // Poll status until done
                 const poll = async () => {
-                    const res = await fetch(`${BACKEND_URL}/api/generate/status?job_id=${job_id}`);
+                    const res = await fetch(`${base}/api/generate/status?job_id=${job_id}`);
                     if (!res.ok) throw new Error('Status check failed');
                     const data = await res.json();
                     progressFill.style.width = (data.progress || 0) + '%';
@@ -1227,7 +1393,10 @@ Be specific about timing, scenes, and visual elements."
             } catch (err) {
                 isGenerating = false;
                 progressContainer.style.display = 'none';
-                alert('❌ Video generation failed: ' + (err && err.message ? err.message : err));
+                const b = apiBase();
+                if (!b) setStatus('❌ Video generation failed: API base is unset. Click “API” to configure (Shift + A).', 'error', true);
+                else setStatus('❌ Video generation failed: ' + (err && err.message ? err.message : err), 'error', true);
+                showToast('Generation failed. See status for details.', 'error');
             }
         }
 
@@ -1239,13 +1408,18 @@ Be specific about timing, scenes, and visual elements."
             
             // Show completed video preview
             const videoPreview = document.getElementById('videoPreview');
-            // Fetch result video as blob for local preview
-            const res = await fetch(`${BACKEND_URL}/api/generate/result?job_id=${jobId}`);
-            if (!res.ok) {
-                alert('❌ Failed to retrieve generated video');
-                return;
+            // Fetch result video as blob for local preview (or use mock blob)
+            let blob;
+            if (useLocalMock) {
+                // Tiny WebM header blob placeholder for player compatibility
+                const dummy = new Uint8Array([26,69,223,163,1,0,0,0]);
+                blob = new Blob([dummy], { type: 'video/webm' });
+            } else {
+                const base = apiBase();
+                const res = await fetch(`${base}/api/generate/result?job_id=${jobId}`);
+                if (!res.ok) { setStatus('❌ Failed to retrieve generated video', 'error'); return; }
+                blob = await res.blob();
             }
-            const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             videoPreview.innerHTML = '';
             const vid = document.createElement('video');
@@ -1268,7 +1442,52 @@ Be specific about timing, scenes, and visual elements."
             document.getElementById('sceneEditor').style.display = 'block';
             generateSceneList();
             
-            alert('🎉 Your music video has been generated successfully!');
+            showToast('🎉 Your music video has been generated successfully!', 'success');
+        }
+
+        // 🧪 Local mock generation to smoke-test UI without backend
+        async function runLocalMockGeneration(progressFill, progressText){
+            const steps = [
+                { t: 800, s: 'Uploading audio', p: 10 },
+                { t: 900, s: 'Analyzing track structure', p: 25 },
+                { t: 1200, s: 'Designing scenes', p: 45 },
+                { t: 900, s: 'Rendering effects', p: 70 },
+                { t: 800, s: 'Muxing audio/video', p: 92 },
+                { t: 700, s: 'Finalizing', p: 100 }
+            ];
+            for (const step of steps){
+                await new Promise(r=>setTimeout(r, step.t));
+                progressFill.style.width = step.p + '%';
+                progressText.textContent = `Status: ${step.s}... ${step.p}%`;
+            }
+            await onBackendGenerationComplete('local-mock');
+        }
+
+        // 🧪 One-click smoke test runner
+        async function runSmokeTest(){
+            const log = [];
+            const push = (m)=>{ log.push(m); };
+            try{
+                // 1) Ensure an audio file placeholder (simulate selection)
+                if (!currentAudio){
+                    const blob = new Blob([new Uint8Array([82,73,70,70,0,0,0,0])], { type: 'audio/wav' });
+                    currentAudio = new File([blob], 'smoke.wav', { type: 'audio/wav' });
+                    push('Set mock audio file');
+                }
+                // 2) Toggle local mock and kick off generation
+                useLocalMock = true;
+                push('Enabled local mock backend');
+                setStatus('🧪 Running local smoke test…', 'info');
+                await generateVideo();
+                push('Triggered generation');
+            } catch(e){
+                push('Error: ' + (e?.message||e));
+            } finally {
+                document.getElementById('diagContent').textContent = log.join('\n');
+                document.getElementById('diagOverlay').style.display = 'flex';
+                // Reset mock for normal use
+                setTimeout(()=>{ useLocalMock = false; }, 500);
+            }
         }
 
         function generateSceneList() {
@@ -1304,31 +1523,38 @@ Be specific about timing, scenes, and visual elements."
         }
 
         function editScene(sceneIndex) {
-            alert(`🎬 Editing scene ${sceneIndex + 1}. Scene editor would open here.`);
+            // Highlight the selected scene and show a status hint
+            const items = document.querySelectorAll('#sceneList .scene-item');
+            items.forEach(el=>el.style.outline='');
+            const el = items[sceneIndex];
+            if (el) { el.style.outline = '2px solid rgba(255,215,0,0.6)'; el.scrollIntoView({behavior:'smooth', block:'center'}); }
+            setStatus(`Editing scene ${sceneIndex + 1}. Adjust timing and details in the Scene Editor.`, 'info');
         }
 
         function deleteScene(sceneIndex) {
-            if (confirm('Are you sure you want to delete this scene?')) {
-                alert(`🗑️ Scene ${sceneIndex + 1} deleted.`);
-                generateSceneList();
-            }
+            // Directly delete from the displayed list and notify
+            const list = document.getElementById('sceneList');
+            const item = list?.children?.[sceneIndex];
+            if (item) item.remove();
+            showToast(`🗑️ Scene ${sceneIndex + 1} deleted.`, 'warn');
         }
 
         // 👁️ PREVIEW & EXPORT
         function previewVideo() {
             const vid = document.querySelector('#videoPreview video.preview-video');
             if (vid && vid.src) { vid.play(); return; }
-            alert('⚠️ Generate a video first (upload audio and click Generate).');
+            setStatus('⚠️ Generate a video first (upload audio and click Generate).', 'warn');
         }
 
         function exportVideo() {
             if (isGenerating) { return; }
             const vid = document.querySelector('#videoPreview video.preview-video');
-            if (!vid || !vid.src) { alert('⚠️ No generated video to export.'); return; }
+            if (!vid || !vid.src) { setStatus('⚠️ No generated video to export.', 'warn'); return; }
             const a = document.createElement('a');
             a.href = vid.src;
             a.download = 'music-video';
             a.click();
+            showToast('💾 Export started', 'info');
         }
 
         // 💾 PROJECT MANAGEMENT
@@ -1344,17 +1570,65 @@ Be specific about timing, scenes, and visual elements."
                     genre: document.getElementById('musicGenre').value
                 }
             };
-            
-            alert('💾 Project saved! Your settings and progress have been preserved.');
+            try {
+                localStorage.setItem('sota:mvg:project', JSON.stringify(projectData));
+                showToast('💾 Project saved locally', 'success');
+            } catch(_) {
+                setStatus('Could not save project to localStorage', 'error');
+            }
         }
 
-        function loadTemplate() {
-            alert('📁 Template library would open here. Choose from pre-made music video templates.');
-        }
+                function loadTemplate() {
+                        // Minimal template presets applying style/palette
+                        const presets = [
+                            { name:'Cinematic Warm', style:'cinematic', palette:'warm' },
+                            { name:'Energetic Vibrant', style:'energetic', palette:'vibrant' },
+                            { name:'Minimalist Monochrome', style:'minimalist', palette:'monochrome' }
+                        ];
+                        const menu = document.createElement('div');
+                        menu.className = 'modal-backdrop';
+                        menu.style.display = 'flex';
+                        menu.innerHTML = `
+                            <div class="modal">
+                                <button class="close-btn" id="tplClose">✕</button>
+                                <h3>📁 Choose a Template</h3>
+                                <div style="display:grid; gap:10px;">
+                                    ${presets.map((p,i)=>`<button data-i="${i}" class="scene-btn" style="text-align:left">${p.name}</button>`).join('')}
+                                </div>
+                            </div>`;
+                        document.body.appendChild(menu);
+                        menu.querySelector('#tplClose').onclick = ()=>menu.remove();
+                        menu.querySelectorAll('button[data-i]').forEach(btn=>{
+                                btn.onclick = ()=>{
+                                        const p = presets[parseInt(btn.getAttribute('data-i'))];
+                                        selectStyle(p.style); selectPalette(p.palette);
+                                        showToast(`Template applied: ${p.name}`, 'success');
+                                        menu.remove();
+                                };
+                        });
+                    }
 
-        function shareVideo() {
-            alert('📤 Share options:\n\n🔗 Copy link\n📱 Social media\n📧 Email\n💾 Download\n🌐 Publish to gallery');
-        }
+                function shareVideo() {
+                        const vid = document.querySelector('#videoPreview video.preview-video');
+                        if (!vid || !vid.src) { setStatus('⚠️ Generate a video first before sharing.', 'warn'); return; }
+                        const box = document.createElement('div');
+                        box.className = 'modal-backdrop'; box.style.display='flex';
+                        box.innerHTML = `
+                            <div class="modal">
+                                <button class="close-btn" id="shareClose">✕</button>
+                                <h3>📤 Share Video</h3>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <input id="shareLink" class="sota-input" style="flex:1" value="${vid.src}" />
+                                    <button class="scene-btn" id="copyLink">Copy</button>
+                                </div>
+                            </div>`;
+                        document.body.appendChild(box);
+                        box.querySelector('#shareClose').onclick=()=>box.remove();
+                        box.querySelector('#copyLink').onclick=()=>{
+                                const input = box.querySelector('#shareLink'); input.select(); document.execCommand('copy');
+                                showToast('Link copied to clipboard', 'success');
+                        };
+                }
 
         // 🎨 VISUAL EFFECTS
         setInterval(() => {
@@ -1383,30 +1657,66 @@ Be specific about timing, scenes, and visual elements."
         });
         
         // 🔒 COPYRIGHT PROTECTION
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            alert('🔒 Content Protected - This software is strictly copyrighted and licensed.');
-        });
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && (e.key === 's' || e.key === 'a' || e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 'p')) {
+        // Relax dev blocking in local environment to ease testing
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1'){
+            console.log('Dev mode: context menu and key blocks relaxed');
+        } else {
+            document.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
-                alert('🔒 Action Disabled - Unauthorized copying/printing is prohibited.');
-            }
-            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
-                e.preventDefault();
-                alert('🔒 Developer Tools Disabled - Content protection active.');
-            }
-        });
-        
-        // Disable text selection
-        document.onselectstart = function() { return false; };
-        document.ondragstart = function() { return false; };
+                showToast('🔒 Content protected', 'warn');
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && (e.key === 's' || e.key === 'a' || e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 'p')) {
+                    e.preventDefault();
+                    showToast('🔒 Action disabled', 'warn');
+                }
+                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+                    e.preventDefault();
+                    showToast('🔒 Developer Tools disabled', 'warn');
+                }
+            });
+            // Disable text selection only in prod
+            document.onselectstart = function() { return false; };
+            document.ondragstart = function() { return false; };
+        }
         
         console.log('🎬 SOTA Music Video Generator - Licensed Software');
         console.log('🔒 All content strictly copyrighted and protected');
         console.log('⚖️ Unauthorized use prohibited and subject to legal action');
     </script>
     <script src="./composer-shim.js"></script>
+<script>
+// Voice control wiring for Music Video Generator
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        if (window.SOTAVoice && SOTAVoice.registerCommands) {
+            SOTAVoice.registerCommands([
+                { pattern: /^upload (?:music|audio)$/i, description: 'Open music upload dialog', handler: () => { document.getElementById('musicFileInput')?.click?.(); } },
+                { pattern: /^generate (?:video|music video)$/i, description: 'Start video generation', handler: () => { if (typeof generateVideo === 'function') generateVideo(); } },
+                { pattern: /^set style (.+)$/i, description: 'Set video style', handler: (m) => {
+                    const v = (m[1]||'').toLowerCase().trim();
+                    const map = {
+                        'cinematic':'cinematic','energetic':'energetic','minimal|minimalist':'minimalist','art|artistic':'artistic',
+                        'vintage':'vintage','future|futuristic':'futuristic','dramatic':'dramatic','play|playful':'playful'
+                    };
+                    let picked = null;
+                    for (const k of Object.keys(map)) { if (new RegExp(`^(?:${k})$`).test(v)) { picked = map[k]; break; } }
+                    if (!picked) picked = v; // attempt direct
+                    if (typeof selectStyle === 'function') selectStyle(picked);
+                } },
+                { pattern: /^set genre (.+)$/i, description: 'Set music genre', handler: (m) => {
+                    const v = (m[1]||'').toLowerCase().trim();
+                    const sel = document.getElementById('musicGenre');
+                    if (sel) {
+                        const opt = Array.from(sel.options).find(o => (o.value||'').toLowerCase()===v || (o.text||'').toLowerCase()===v);
+                        if (opt) sel.value = opt.value;
+                        sel.dispatchEvent(new Event('change',{bubbles:true}));
+                    }
+                } },
+            ]);
+        }
+    } catch(_){}
+});
+</script>
 </body>
 </html>

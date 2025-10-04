@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOTA Webcam Enhancement Studio</title>
+  <script src="config.js"></script>
+  <script src="voice.js"></script>
+  <script src="./composer-shim.js"></script>
+  <!-- MediaPipe for real-time person segmentation -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+    * { box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: linear-gradient(145deg, #070b14 0%, #0a0f1f 40%, #0b1225 100%); color: #e5e7eb; margin: 0; }
+    .nav { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; position:sticky; top:0; z-index:1000; background: rgba(10,10,15,0.9); border-bottom:1px solid rgba(56,189,248,0.35); }
+    .nav a { text-decoration:none; color:#e6f9ff; background: linear-gradient(135deg, #06b6d4, #a21caf); padding:8px 12px; border-radius:10px; font-weight:800; font-size:12px; border:1px solid rgba(56,189,248,0.35); }
+    .wrap { max-width: 1600px; margin: 0 auto; padding: 16px; display:grid; grid-template-columns: 340px 1fr 320px; gap:16px; }
+    .panel { background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); backdrop-filter: blur(20px); border:1px solid rgba(103,232,249,0.25); border-radius:20px; padding:16px; }
+    .panel h3 { margin:0 0 10px; color:#67e8f9; }
+    .controls .row { margin-bottom:10px; }
+    .label { display:block; font-size:12px; color:#67e8f9; margin-bottom:6px; }
+    .input, select, button { width:100%; padding:10px; background: rgba(0,0,0,0.45); color:#e6f9ff; border:1px solid rgba(56,189,248,0.35); border-radius:10px; font-family: inherit; }
+    .btn { cursor:pointer; font-weight:800; text-transform:uppercase; letter-spacing:1px; background: linear-gradient(135deg, #06b6d4, #a21caf); }
+    .btn.secondary { background: transparent; color: #67e8f9; }
+    .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; }
+    .background-thumb { height:72px; border-radius:10px; border:1px solid rgba(56,189,248,0.25); cursor:pointer; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .background-thumb.active { outline: 2px solid #FFD700; }
+    .preview { position:relative; border-radius:14px; border:1px solid rgba(103,232,249,0.25); overflow:hidden; background:#000; }
+    .row-inline { display:flex; gap:8px; }
+    .kpi { display:flex; gap:12px; font-size:12px; color:#aee8f7; margin-top:8px; }
+    .status { position:fixed; top:0; left:0; right:0; padding:8px 12px; background:rgba(6,182,212,0.12); color:#67e8f9; border-bottom:1px solid rgba(103,232,249,0.25); display:none; }
+    @media (max-width: 1200px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+  </head>
+<body>
+  <div id="status" class="status"></div>
+  <div class="nav">
+    <a href="index.html">🏠 SOTA Hub</a>
+  <div style="font-weight:800; background: linear-gradient(135deg, #67e8f9, #e879f9); background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent; color:transparent;">SOTA Webcam Enhancement Studio</div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" onclick="openHelp()">Help</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <!-- Left: Controls -->
+    <section class="panel controls">
+      <h3>🎥 Capture & Enhance</h3>
+      <div class="row">
+        <label class="label">Camera</label>
+        <select id="cameraSel"></select>
+      </div>
+      <div class="row">
+        <label class="label">Target Output</label>
+        <select id="targetRes">
+          <option value="1080p">1080p (1920x1080)</option>
+          <option value="4k">4K (3840x2160)</option>
+          <option value="8k" selected>8K (7680x4320)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label class="label">Sharpen</label>
+        <input id="sharpen" class="input" type="range" min="0" max="1" step="0.05" value="0.2" />
+      </div>
+      <div class="row row-inline">
+        <button class="btn" onclick="start()">Start</button>
+        <button class="btn secondary" onclick="stop()">Stop</button>
+      </div>
+      <div class="kpi">
+        <div>Input: <span id="kIn">--</span></div>
+        <div>Output: <span id="kOut">--</span></div>
+        <div>FPS: <span id="kFps">--</span></div>
+      </div>
+      <hr style="border-color: rgba(103,232,249,0.15); margin:14px 0;" />
+      <h3>🎭 Backgrounds</h3>
+      <div class="grid" id="bgGrid"></div>
+      <div class="row" style="margin-top:10px;">
+        <label class="label">Custom Background</label>
+        <input id="bgFile" type="file" accept="image/*" class="input" />
+      </div>
+    </section>
+
+    <!-- Center: Preview -->
+    <section class="panel">
+      <h3>🔭 Live Preview</h3>
+      <div class="preview">
+        <video id="rawVideo" playsinline muted style="display:none"></video>
+        <canvas id="mixCanvas" width="1920" height="1080" style="width:100%; height:auto; display:block;"></canvas>
+      </div>
+    </section>
+
+    <!-- Right: Record & Export -->
+    <section class="panel">
+      <h3>💾 Record & Export</h3>
+      <div class="row">
+        <label class="label">Container</label>
+        <select id="recContainer">
+          <option value="video/webm">WebM (recommended)</option>
+          <option value="video/mp4">MP4 (browser-dependent)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label class="label">Frame Rate</label>
+        <select id="recFps">
+          <option>24</option>
+          <option selected>30</option>
+          <option>60</option>
+        </select>
+      </div>
+      <div class="row row-inline">
+        <button class="btn" onclick="startRecording()">Start Recording</button>
+        <button class="btn secondary" onclick="stopRecording()">Stop</button>
+      </div>
+      <div class="row">
+        <button class="btn secondary" onclick="openPiP()">Open Picture-in-Picture</button>
+      </div>
+      <div style="font-size:12px; color:#aee8f7; margin-top:10px;">
+        Note: Browsers cannot keep the camera running when all SOTA pages are closed. Keep this page open for continuous enhancement.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // State
+    let rawStream = null; let camera = null; let segmenter = null; let running=false; let lastFps=0; let rafId=null; let rec = null; let chunks=[];
+    let bgChoice = 'studio'; let customBgImg = null;
+
+    const el = (id)=>document.getElementById(id);
+    const statusBar = el('status');
+    function setStatus(msg){ statusBar.textContent = msg; statusBar.style.display='block'; clearTimeout(setStatus._t); setStatus._t=setTimeout(()=>statusBar.style.display='none', 3000); }
+
+    // Build background thumbnails (procedural SVG/canvas)
+    const backgrounds = [
+      {id:'studio', label:'Recording Studio'},
+      {id:'booth', label:'Recording Booth'},
+      {id:'field', label:'Beautiful Field'},
+      {id:'console', label:'128-Track Console'},
+      {id:'beach', label:'Beach'}
+    ];
+
+    function drawBackgroundToCanvas(kind, c){ const ctx=c.getContext('2d'); const w=c.width, h=c.height; ctx.clearRect(0,0,w,h);
+      if(kind==='studio'){
+        const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#0b1020'); g.addColorStop(1,'#1a1f3a'); ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+        // speakers
+        ctx.fillStyle='#222'; ctx.fillRect(w*0.15,h*0.2,w*0.12,h*0.45); ctx.fillRect(w*0.73,h*0.2,w*0.12,h*0.45);
+        ctx.fillStyle='#444'; ctx.beginPath(); ctx.arc(w*0.21,h*0.32,18,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(w*0.79,h*0.32,18,0,Math.PI*2); ctx.fill();
+        // LED strips
+        ctx.fillStyle='rgba(6,182,212,0.4)'; ctx.fillRect(0,h*0.7,w,6);
+        // panels
+        ctx.fillStyle='rgba(255,255,255,0.06)'; for(let i=0;i<8;i++){ ctx.fillRect(w*0.1+i* (w*0.1), h*0.05, w*0.06, h*0.12); }
+      } else if(kind==='booth'){
+        const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#1a0f0a'); g.addColorStop(1,'#2a140d'); ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+        // foam pattern
+        ctx.fillStyle='rgba(255,255,255,0.06)'; for(let y=0;y<h;y+=20){ for(let x=0;x<w;x+=24){ ctx.beginPath(); ctx.moveTo(x,y+10); ctx.lineTo(x+12,y); ctx.lineTo(x+24,y+10); ctx.lineTo(x+12,y+20); ctx.closePath(); ctx.fill(); } }
+        // mic
+        ctx.fillStyle='#555'; ctx.fillRect(w*0.48,h*0.3, w*0.04, h*0.22); ctx.fillStyle='#888'; ctx.beginPath(); ctx.arc(w*0.5,h*0.28, 28, 0, Math.PI*2); ctx.fill();
+      } else if(kind==='field'){
+        const sky=ctx.createLinearGradient(0,0,0,h*0.6); sky.addColorStop(0,'#6ec3ff'); sky.addColorStop(1,'#bfe9ff'); ctx.fillStyle=sky; ctx.fillRect(0,0,w,h*0.6);
+        const ground=ctx.createLinearGradient(0,h*0.6,0,h); ground.addColorStop(0,'#88d66c'); ground.addColorStop(1,'#4caf50'); ctx.fillStyle=ground; ctx.fillRect(0,h*0.6,w,h*0.4);
+        // sun and clouds
+        ctx.fillStyle='rgba(255,255,255,0.9)'; for(let i=0;i<4;i++){ const cx=w*(0.2+i*0.18); const cy=h*0.18; ctx.beginPath(); ctx.arc(cx,cy,22,0,Math.PI*2); ctx.arc(cx+24,cy+6,18,0,Math.PI*2); ctx.arc(cx-24,cy+8,16,0,Math.PI*2); ctx.fill(); }
+        ctx.fillStyle='#ffd54f'; ctx.beginPath(); ctx.arc(w*0.08,h*0.12, 30, 0, Math.PI*2); ctx.fill();
+      } else if(kind==='console'){
+        const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,'#0c0f14'); g.addColorStop(1,'#18202c'); ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+        // big console bars
+        const rows=6, cols=32; for(let r=0;r<rows;r++){ for(let c2=0;c2<cols;c2++){ ctx.fillStyle=`hsl(${(c2*10)%360},60%,${30+r*5}%)`; const bw=w*0.8/cols; const bh=h*0.45/rows; const x=w*0.1 + c2*bw; const y=h*0.5 + r*bh; ctx.fillRect(x,y,bw-2,bh-4); } }
+        // meters
+        ctx.fillStyle='rgba(6,182,212,0.6)'; ctx.fillRect(w*0.1,h*0.4,w*0.8,8);
+      } else if(kind==='beach'){
+        const sky=ctx.createLinearGradient(0,0,0,h*0.55); sky.addColorStop(0,'#87ceeb'); sky.addColorStop(1,'#b3e5fc'); ctx.fillStyle=sky; ctx.fillRect(0,0,w,h*0.55);
+        const sea=ctx.createLinearGradient(0,h*0.55,0,h*0.8); sea.addColorStop(0,'#00bcd4'); sea.addColorStop(1,'#0288d1'); ctx.fillStyle=sea; ctx.fillRect(0,h*0.55,w,h*0.25);
+        const sand=ctx.createLinearGradient(0,h*0.8,0,h); sand.addColorStop(0,'#f4d19b'); sand.addColorStop(1,'#e2b77d'); ctx.fillStyle=sand; ctx.fillRect(0,h*0.8,w,h*0.2);
+        // waves
+        ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=2; for(let i=0;i<3;i++){ ctx.beginPath(); ctx.moveTo(0,h*0.65+i*8); for(let x=0;x<w;x+=20){ ctx.quadraticCurveTo(x+10,h*0.63+i*8, x+20, h*0.65+i*8); } ctx.stroke(); }
+      }
+      // label
+      ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(0,h-22,w,22);
+      ctx.fillStyle='#FFD700'; ctx.font='12px JetBrains Mono'; ctx.textBaseline='middle'; ctx.fillText(kind.toUpperCase(), 8, h-11);
+    }
+
+    function buildBgGrid(){ const g = el('bgGrid'); g.innerHTML=''; backgrounds.forEach(b=>{ const c=document.createElement('canvas'); c.width=240; c.height=72; drawBackgroundToCanvas(b.id, c); const div=document.createElement('div'); div.className='background-thumb' + (bgChoice===b.id?' active':''); div.appendChild(c); div.title=b.label; div.onclick=()=>{ bgChoice = b.id; document.querySelectorAll('.background-thumb').forEach(e=>e.classList.remove('active')); div.classList.add('active'); } ; g.appendChild(div); }); }
+
+    async function listCameras(){ const sel = el('cameraSel'); sel.innerHTML=''; try{ const devices = await navigator.mediaDevices.enumerateDevices(); const cams = devices.filter(d=>d.kind==='videoinput'); cams.forEach((d,i)=>{ const o=document.createElement('option'); o.value=d.deviceId; o.textContent=d.label || `Camera ${i+1}`; sel.appendChild(o); }); } catch(e){ console.warn(e); }
+    }
+
+    function parseTarget(){ const v = el('targetRes').value; if(v==='8k') return {w:7680,h:4320}; if(v==='4k') return {w:3840,h:2160}; return {w:1920,h:1080}; }
+
+    async function start(){ try{
+      const sel = el('cameraSel'); const deviceId = sel.value || undefined;
+      const constraints = { video: { deviceId: deviceId? {exact: deviceId}: undefined, width: {ideal: 3840}, height: {ideal: 2160}, frameRate: {ideal: 30} }, audio:false };
+      rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const v = el('rawVideo'); v.srcObject = rawStream; await v.play();
+      el('kIn').textContent = `${v.videoWidth||'?' }x${v.videoHeight||'?'}`;
+      // Setup segmenter
+      segmenter = new SelfieSegmentation({ locateFile: (file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+      segmenter.setOptions({ modelSelection: 1 });
+      running = true; loop(); setStatus('Camera started');
+    } catch(e){ console.error(e); setStatus('Failed to start camera'); }
+    }
+
+    function stop(){ running=false; cancelAnimationFrame(rafId); if(rawStream){ rawStream.getTracks().forEach(t=>t.stop()); rawStream=null; } setStatus('Stopped'); }
+
+    function mixOnce(results){ const out = el('mixCanvas'); const ctx = out.getContext('2d'); const {w,h} = (function(){ const t=parseTarget(); return {w:t.w,h:t.h}; })(); out.width = w; out.height = h; el('kOut').textContent = `${w}x${h}`;
+      // Prepare a background layer canvas matching input aspect
+      const bw = results.image.width, bh = results.image.height; const bg = document.createElement('canvas'); bg.width=bw; bg.height=bh; const bgc=bg.getContext('2d');
+      if(customBgImg){ bgc.drawImage(customBgImg, 0,0,bw,bh); } else { drawBackgroundToCanvas(bgChoice, bg); }
+      // Compose: mask is person; put bg where mask is background, person from original frame
+      const mask = results.segmentationMask; const tmp = document.createElement('canvas'); tmp.width=bw; tmp.height=bh; const tc=tmp.getContext('2d');
+      // Draw background only where mask is background
+      tc.save(); tc.drawImage(mask,0,0,bw,bh); tc.globalCompositeOperation='source-out'; tc.drawImage(bg,0,0,bw,bh); tc.restore();
+      // Draw person on top where mask is person
+      tc.save(); tc.globalCompositeOperation='destination-atop'; tc.drawImage(results.image,0,0,bw,bh); tc.restore();
+      // Optional sharpening
+      const s = parseFloat(el('sharpen').value||'0');
+      if(s>0){ // simple unsharp mask
+        const blur = document.createElement('canvas'); blur.width=bw; blur.height=bh; const bc=blur.getContext('2d'); bc.filter=`blur(${Math.max(0.5, s*3)}px)`; bc.drawImage(tmp,0,0); const tmpCtx = tc; const srcData = tmpCtx.getImageData(0,0,bw,bh); const blurData = bc.getImageData(0,0,bw,bh); const d=srcData.data, bdat=blurData.data; for(let i=0;i<d.length;i+=4){ d[i] = clamp(d[i] + (d[i]-bdat[i])*s*0.8); d[i+1]= clamp(d[i+1]+(d[i+1]-bdat[i+1])*s*0.8); d[i+2]= clamp(d[i+2]+(d[i+2]-bdat[i+2])*s*0.8); } tmpCtx.putImageData(srcData,0,0);
+      }
+      // upscale to target
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(tmp, 0,0,w,h);
+    }
+
+    function clamp(x){ return x<0?0:(x>255?255:x); }
+
+    async function loop(){ if(!running || !segmenter) return; const v = el('rawVideo'); const t0=performance.now();
+      try { await segmenter.send({ image: v }); const results = segmenter.results; if(results) mixOnce(results); } catch(e){ /* ignore once */ }
+      const dt = performance.now()-t0; lastFps = (0.9*lastFps) + 0.1*(1000/Math.max(1,dt)); el('kFps').textContent = lastFps.toFixed(1);
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function startRecording(){ const type = el('recContainer').value; const fps=parseInt(el('recFps').value||'30'); const stream = el('mixCanvas').captureStream(fps);
+      chunks=[]; try { rec = new MediaRecorder(stream, { mimeType: type }); } catch(e){ setStatus('Selected container not supported'); return; }
+      rec.ondataavailable = e=>{ if(e.data && e.data.size>0) chunks.push(e.data); };
+      rec.onstop = ()=>{ const blob = new Blob(chunks, { type: type }); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='webcam-enhanced.webm'; a.click(); setStatus('Recording saved'); };
+      rec.start(); setStatus('Recording…'); }
+    function stopRecording(){ if(rec && rec.state!=='inactive'){ rec.stop(); } }
+
+    async function openPiP(){ try{ const c = el('mixCanvas'); const v = document.createElement('video'); v.srcObject = c.captureStream(30); v.muted=true; await v.play(); await v.requestPictureInPicture(); } catch(e){ setStatus('PiP not supported'); } }
+
+    el('bgFile').addEventListener('change', async (e)=>{ const f=e.target.files && e.target.files[0]; if(!f) return; const img=new Image(); img.onload=()=>{ customBgImg=img; setStatus('Custom background loaded'); }; img.src=URL.createObjectURL(f); });
+
+    async function init(){ buildBgGrid(); await listCameras(); }
+    function openHelp(){ alert('Webcam Enhancement Studio\n\n• Start to enable your camera and apply background replacement.\n• Choose one of the five preset backgrounds or upload a custom image.\n• Target Output controls the canvas resolution (up to 8K).\n• Use Sharpen to increase perceived detail after upscaling.\n• Record to WebM or try Picture-in-Picture.\n\nLimitations: Browsers cannot keep the camera active when all pages are closed. Keep this page open to continue processing.'); }
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

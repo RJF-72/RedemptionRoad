@@ -12,7 +12,7 @@
       body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
     </style>
   </head>
-  <body class="bg-gray-950">
+  <body>
     <div id="root"></div>
 
     <!-- React via CDN -->
@@ -20,13 +20,20 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <!-- Babel Standalone for JSX/ES features in-browser (dev-friendly) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Load the SmartSynth component with JSX via Babel -->
+    <!-- Load SmartSynth (AdvancedComposer) with JSX via Babel -->
     <script type="text/babel" data-presets="env,react" src="./smart-synth.js"></script>
+    <!-- Global dark-neon theme and helpers -->
+    <script src="./composer-shim.js"></script>
     <script>
       // Mount component and also expose a quick-export helper
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      const app = React.createElement(window.AdvancedComposer);
-      root.render(app);
+      const rootEl = document.getElementById('root');
+      const mount = () => {
+        if (!window.AdvancedComposer || !window.ReactDOM) { setTimeout(mount, 50); return; }
+        const root = ReactDOM.createRoot(rootEl);
+        const app = React.createElement(window.AdvancedComposer);
+        root.render(app);
+      };
+      mount();
 
       // Attach a helper to window so the host page can trigger exports for quick tests
       window.exportPartsMIDI = (parts = ['bass','drums','melody']) => {
@@ -36,7 +43,7 @@
         alert('Export helper: open composer and use Export Parts MIDI from the UI');
       };
     </script>
-    <div style="position:fixed; right:16px; bottom:16px;">
+    <div style="position:fixed; right:16px; bottom:16px; z-index:999;">
       <button onclick="exportPartsMIDI(['bass','drums','melody'])" style="background:#7c3aed;color:white;padding:10px 14px;border-radius:8px;border:none;box-shadow:0 6px 18px rgba(124,58,237,0.25);">Export Parts MIDI</button>
     </div>
   </body>

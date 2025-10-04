@@ -1,0 +1,5 @@
+# Put one direct image URL per line (png/jpeg/webp/gif)
+# Example sources: unsplash.com (raw URLs), your CDN, screenshots
+https://images.unsplash.com/photo-1527356926121-5f7d1c0b4d8c?w=1600
+https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?w=1600
+# Add more...

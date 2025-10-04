@@ -19,7 +19,7 @@ def _palette_weights(palette: str) -> tuple[float, float, float]:
     return (1.0, 1.0, 1.0)
 
 
-def build_music_video(
+def build_visualizer_video(
     audio_path: str,
     genre: str,
     style: str,
@@ -28,8 +28,8 @@ def build_music_video(
     work_dir: Optional[str] = None,
 ) -> str:
     """
-    CPU-only abstract visualizer that pairs the provided audio with a lightweight
-    animated background. Avoids external dependencies (like ImageMagick).
+    CPU-friendly abstract visualizer that pairs the provided audio with a lightweight
+    animated background. Avoids heavy model dependencies and runs on any machine.
 
     Returns: absolute path to the generated mp4 file.
     """
@@ -279,15 +279,40 @@ def build_video_from_images(images: List[str], audio_path: str, out_path: str, t
     return out_path
 
 
-def build_music_video(audio_path: str, genre: str, style: str, palette: str, seed: Optional[int] = None, work_dir: Optional[str] = None) -> str:
+def build_music_video(
+    audio_path: str,
+    genre: str,
+    style: str,
+    palette: str,
+    seed: Optional[int] = None,
+    work_dir: Optional[str] = None
+) -> str:
+    """
+    Unified entry point: prefer SDXL image synthesis + (optional) SVD motion when available; otherwise
+    fall back to a fast procedural visualizer that runs everywhere.
+    """
     work_dir = work_dir or tempfile.mkdtemp(prefix='mvjob_')
     _ensure_dir(work_dir)
-    dur = analyze_audio(audio_path)
-    prompts = build_prompts(genre, style, palette)
-    # Generate images
-    img_dir = os.path.join(work_dir, 'images')
-    images = generate_images_sdxl(prompts, img_dir, seed=seed)
-    # TODO: Optionally: if SVD available, convert each image to a short motion clip and stitch
-    out_path = os.path.join(work_dir, 'output.mp4')
-    build_video_from_images(images, audio_path, out_path, target_duration=dur)
-    return out_path
+
+    # Environment toggles
+    force_fallback = os.getenv('SOTA_FORCE_FALLBACK', '0') == '1'
+    disable_sdxl = os.getenv('SOTA_DISABLE_SDXL', '0') == '1'
+
+    # If SDXL isn't available or explicitly disabled, use the lightweight path
+    use_sdxl = (not force_fallback) and (not disable_sdxl) and _HAS_TORCH and (StableDiffusionXLPipeline is not None)
+
+    if not use_sdxl:
+        return build_visualizer_video(audio_path, genre, style, palette, seed=seed, work_dir=work_dir)
+
+    # SDXL path (CPU or GPU depending on environment)
+    try:
+        dur = analyze_audio(audio_path)
+        prompts = build_prompts(genre, style, palette)
+        img_dir = os.path.join(work_dir, 'images')
+        images = generate_images_sdxl(prompts, img_dir, seed=seed)
+        out_path = os.path.join(work_dir, 'output.mp4')
+        build_video_from_images(images, audio_path, out_path, target_duration=dur)
+        return out_path
+    except Exception:
+        # Any failure in the heavy path should degrade gracefully to the visualizer
+        return build_visualizer_video(audio_path, genre, style, palette, seed=seed, work_dir=work_dir)

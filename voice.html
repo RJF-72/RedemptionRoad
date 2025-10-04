@@ -414,11 +414,56 @@
 		}
 
 		let isRecording=false;let isEnhancing=false;let selectedTarget='neumann-u87';let selectedExportFormat='wav';
+		let audioCtx=null; let micStream=null; let micSource=null; let analyser=null; let compressor=null; let hp=null; let lp=null; let convolver=null; let masterGain=null; let mediaDest=null; let recorder=null; let chunks=[]; let lastBlob=null;
 
-		document.addEventListener('DOMContentLoaded',()=>{generateWaveforms();initializeAudioContext();});
-		function initializeAudioContext(){try{const ac=new(window.AudioContext||window.webkitAudioContext)();console.log('WarriorMic Audio Context initialized');}catch(e){console.log('Web Audio API not supported');}}
-		function generateWaveforms(){generateWaveformBars('originalWaveform',40,60);generateWaveformBars('enhancedWaveform',60,90)}
-		function generateWaveformBars(id,minH,maxH){const c=document.getElementById(id);if(!c)return;c.innerHTML='';for(let i=0;i<80;i++){const b=document.createElement('div');b.className='waveform-bar';b.style.height=(Math.random()*(maxH-minH)+minH)+'%';c.appendChild(b);}}
+		document.addEventListener('DOMContentLoaded',()=>{setupWaveforms();});
+		async function initIfNeeded(){
+			if (audioCtx) return;
+			audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+			analyser = audioCtx.createAnalyser(); analyser.fftSize=2048;
+			compressor = audioCtx.createDynamicsCompressor();
+			compressor.threshold.value=-18; compressor.knee.value=20; compressor.ratio.value=3; compressor.attack.value=0.003; compressor.release.value=0.25;
+			hp = audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=80;
+			lp = audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=16000;
+			convolver = audioCtx.createConvolver(); convolver.buffer = makeImpulse(audioCtx, 1.2, 0.4);
+			masterGain = audioCtx.createGain(); masterGain.gain.value=1.0;
+			mediaDest = audioCtx.createMediaStreamDestination();
+			// chain will be: mic -> hp -> lp -> compressor -> convolver -> masterGain -> analyser -> destination + mediaDest
+		}
+		function connectGraph(){
+			if (!micSource) return;
+			// disconnect any previous
+			try { micSource.disconnect(); hp.disconnect(); lp.disconnect(); compressor.disconnect(); convolver.disconnect(); masterGain.disconnect(); analyser.disconnect(); } catch{}
+			micSource.connect(hp); hp.connect(lp); lp.connect(compressor); compressor.connect(convolver); convolver.connect(masterGain); masterGain.connect(analyser); masterGain.connect(audioCtx.destination); masterGain.connect(mediaDest);
+		}
+		function makeImpulse(ctx, seconds=1.2, decay=0.4){
+			const rate=ctx.sampleRate, len=Math.floor(rate*seconds); const buf=ctx.createBuffer(2,len,rate);
+			for(let ch=0; ch<2; ch++){ const d=buf.getChannelData(ch); for(let i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len, decay*2); } }
+			return buf;
+		}
+		function setupWaveforms(){
+			// create bars for both waveforms
+			['originalWaveform','enhancedWaveform'].forEach((id, idx)=>{
+				const c=document.getElementById(id); if(!c) return; c.innerHTML='';
+				for(let i=0;i<80;i++){ const b=document.createElement('div'); b.className='waveform-bar'; b.style.height=(idx? (70+Math.random()*20):(40+Math.random()*20))+'%'; c.appendChild(b); }
+			});
+			// animate from analyser when available
+			const tick = ()=>{
+				requestAnimationFrame(tick);
+				if (!analyser) return;
+				const time = new Uint8Array(analyser.fftSize);
+				analyser.getByteTimeDomainData(time);
+				const c1 = document.getElementById('originalWaveform');
+				const c2 = document.getElementById('enhancedWaveform');
+				if (!c1 || !c2) return;
+				const bars1 = c1.children, bars2=c2.children;
+				for(let i=0;i<bars1.length;i++){
+					const v=time[Math.floor(i/time.length*analyser.fftSize)]||128; const pct = Math.abs(v-128)/128; bars1[i].style.height=(30 + pct*50)+'%';
+					bars2[i].style.height=(60 + pct*35)+'%';
+				}
+			};
+			tick();
+		}
 
 		// Target selection
 		function selectTarget(targetId, el){selectedTarget=targetId;document.querySelectorAll('.target-mic').forEach(x=>x.classList.remove('active'));if(el) el.classList.add('active');updateTargetPreview(targetId)}
@@ -430,29 +475,70 @@
 		};const t=map[id];if(!t)return;document.querySelector('.target-mic-image').textContent=t.icon;document.querySelector('.target-mic-name').textContent=t.name;document.querySelector('.target-mic-price').textContent='Professional Studio Standard • '+t.price;document.querySelector('.target-mic-preview div:last-child').textContent=t.description}
 
 		// Recording
-		function toggleRecording(){const btn=document.getElementById('recordBtn');if(!isRecording){isRecording=true;btn.textContent='⏹️ Stop Recording';btn.classList.add('recording');animateMicQuality();alert('🎤 Recording started! Speak into your microphone to capture audio for enhancement.');}else{isRecording=false;btn.textContent='🎤 Start Recording';btn.classList.remove('recording');alert('⏹️ Recording stopped! Audio captured and ready for WarriorMic enhancement.');}}
-		function testMicrophone(){alert('🔍 Microphone Test Results:\n\n✅ Device: Detected\n✅ Input Level: Good\n✅ Latency: 12ms\n⚠️ Background Noise: Moderate\n📊 Enhancement Potential: High\n\nYour microphone is ready for WarriorMic enhancement!')}
+		async function toggleRecording(){
+			const btn=document.getElementById('recordBtn');
+			if(!isRecording){
+				await initIfNeeded();
+				try {
+					micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+				} catch(e){ alert('Mic access denied or unavailable'); return; }
+				micSource = audioCtx.createMediaStreamSource(micStream);
+				connectGraph();
+				chunks = []; lastBlob=null;
+				recorder = new MediaRecorder(mediaDest.stream, { mimeType: 'audio/webm' });
+				recorder.ondataavailable = (e)=>{ if (e.data && e.data.size>0) chunks.push(e.data); };
+				recorder.onstop = ()=>{ lastBlob = new Blob(chunks, { type: 'audio/webm' }); };
+				recorder.start();
+				isRecording=true; btn.textContent='⏹️ Stop Recording'; btn.classList.add('recording'); animateMicQuality();
+			} else {
+				try { recorder && recorder.state!=='inactive' && recorder.stop(); } catch{}
+				try { micStream && micStream.getTracks().forEach(t=>t.stop()); } catch{}
+				isRecording=false; btn.textContent='🎤 Start Recording'; btn.classList.remove('recording');
+			}
+		}
+		async function testMicrophone(){
+			await initIfNeeded();
+			try { const s = await navigator.mediaDevices.getUserMedia({ audio:true }); s.getTracks().forEach(t=>t.stop()); alert('Mic accessible: OK'); }
+			catch { alert('Mic test failed'); }
+		}
 		function animateMicQuality(){const bars=document.querySelectorAll('.quality-bar');const it=setInterval(()=>{if(!isRecording){clearInterval(it);return}bars.forEach((bar,i)=>{const active=Math.random()>(i*0.1);bar.classList.toggle('active',active)})},200)}
 
 		// Sliders
-		function updateSliderValue(id,val){const el=document.getElementById(id+'Value');if(el) el.textContent=val+'%';updateWaveformPreview()}
-		function updateWaveformPreview(){const clarity=+document.getElementById('claritySlider').value||0;const warmth=+document.getElementById('warmthSlider').value||0;const presence=+document.getElementById('presenceSlider').value||0;const factor=(clarity+warmth+presence)/300;generateWaveformBars('enhancedWaveform',60+factor*20,90+factor*10)}
+		function updateSliderValue(id,val){const el=document.getElementById(id+'Value');if(el) el.textContent=val+'%';applyEnhancementSettings()}
+		function applyEnhancementSettings(){
+			if (!audioCtx) return;
+			const clarity=+document.getElementById('claritySlider').value||75;
+			const warmth=+document.getElementById('warmthSlider').value||60;
+			const presence=+document.getElementById('presenceSlider').value||80;
+			// map sliders to filters/compressor
+			if (hp) hp.frequency.value = 40 + (clarity/100)*120; // highpass to remove rumble
+			if (lp) lp.frequency.value = 8000 + (presence/100)*12000;
+			if (compressor) { compressor.threshold.value = -30 + (warmth/100)*20; compressor.ratio.value = 2 + (presence/100)*6; }
+		}
 
 		// Enhancement process
 		function enhanceAudio(){
-			if(isEnhancing){alert('🎤 Enhancement already in progress!');return}
-			if(!isRecording && !confirm('No audio recorded. Use sample audio for demonstration?')) return;
-			isEnhancing=true;document.getElementById('progressContainer').style.display='block';simulateEnhancement();
+			if (isEnhancing) return; isEnhancing=true;
+			document.getElementById('progressContainer').style.display='block';
+			const pf=document.getElementById('progressFill'); const pt=document.getElementById('progressText'); const ps=document.getElementById('progressStage');
+			// Apply current settings and run a short stabilization period
+			applyEnhancementSettings();
+			let p=0; const it=setInterval(()=>{ p=Math.min(100,p+20); pf.style.width=p+'%'; pt.textContent='Applying real-time enhancement...'; ps.textContent='Live processing active'; if(p>=100){ clearInterval(it); isEnhancing=false; document.getElementById('progressContainer').style.display='none'; } }, 250);
 		}
-		function simulateEnhancement(){const pf=document.getElementById('progressFill');const pt=document.getElementById('progressText');const ps=document.getElementById('progressStage');const stages=[{p:25,t:'🔍 Analyzing audio characteristics and identifying enhancement opportunities...',s:'Stage 1 of 4: Audio Analysis',id:1},{p:50,t:'🎯 Applying advanced noise reduction and background elimination...',s:'Stage 2 of 4: Noise Reduction',id:2},{p:75,t:'⚡ Enhancing frequency response to match target microphone profile...',s:'Stage 3 of 4: Frequency Enhancement',id:3},{p:100,t:'✨ Applying professional polish and final quality optimization...',s:'Stage 4 of 4: Professional Polish',id:4}];let i=0;const it=setInterval(()=>{if(i<stages.length){const st=stages[i];pf.style.width=st.p+'%';pt.textContent=st.t;ps.textContent=st.s;updateStageIndicators(st.id);i++;}else{clearInterval(it);onEnhancementComplete();}},2000)}
-		function updateStageIndicators(active){for(let i=1;i<=4;i++){const el=document.getElementById('stage'+i);el.classList.remove('active','completed');if(i<active) el.classList.add('completed'); else if(i===active) el.classList.add('active')}}
-		function onEnhancementComplete(){isEnhancing=false;document.getElementById('progressContainer').style.display='none';document.querySelectorAll('.stage-item').forEach(s=>{s.classList.remove('active');s.classList.add('completed')});generateWaveformBars('enhancedWaveform',80,95);alert('🎉 WarriorMic Enhancement Complete!\n\n✨ Your voice now sounds like it was recorded with a professional $3,700 Neumann U87 microphone!\n\n🎯 Quality improvements:\n• Frequency response: 20Hz-20kHz\n• Signal-to-noise: 87 dB\n• Dynamic range: 130 dB\n• Professional warmth and clarity')}
-		function previewEnhancement(){alert('👁️ Enhancement Preview:\n\n🎤 Original: Basic microphone quality\n✨ Enhanced: Professional studio sound\n\n🎯 Improvements include:\n• Crystal clear highs\n• Warm, rich midrange\n• Controlled low frequencies\n• Eliminated background noise\n• Professional vocal presence\n\nClick "Enhance Voice" to apply these improvements!')}
+		function previewEnhancement(){
+			if (!lastBlob){ alert('Record first to preview.'); return; }
+			const url = URL.createObjectURL(lastBlob);
+			const a = new Audio(url); a.onended = ()=> URL.revokeObjectURL(url); a.play();
+		}
 
 		// Export
 		function selectExportFormat(fmt, el){selectedExportFormat=fmt;document.querySelectorAll('.export-format').forEach(x=>x.classList.remove('active'));if(el) el.classList.add('active');updateQualitySettings(fmt)}
 		function updateQualitySettings(fmt){const settings={wav:{sampleRate:'96 kHz',bitDepth:'32-bit',size:'~25 MB',quality:'Professional'},flac:{sampleRate:'96 kHz',bitDepth:'24-bit',size:'~12 MB',quality:'High Quality'},mp3:{sampleRate:'48 kHz',bitDepth:'320 kbps',size:'~8 MB',quality:'Standard'},aiff:{sampleRate:'96 kHz',bitDepth:'32-bit',size:'~25 MB',quality:'Professional'}};const s=settings[fmt];if(!s)return;const q=document.querySelectorAll('.quality-preset');q[0].querySelector('span:last-child').textContent=s.sampleRate;q[1].querySelector('span:last-child').textContent=s.bitDepth;q[2].querySelector('span:last-child').textContent=s.size;q[3].querySelector('span:last-child').textContent=s.quality}
-		function exportEnhancedAudio(){if(!isEnhancing && !confirm('No enhanced audio available. Export sample for demonstration?')) return;alert(`📤 Exporting Enhanced Audio...\n\n🎯 Format: ${selectedExportFormat.toUpperCase()}\n📊 Quality: Professional\n🎤 Profile: ${selectedTarget.replace('-', ' ').toUpperCase()}\n\nYour professionally enhanced voice will be ready for download in moments!`)}
+		function exportEnhancedAudio(){
+			if (!lastBlob) { alert('No recording to export. Record and stop first.'); return; }
+			const url = URL.createObjectURL(lastBlob);
+			const a = document.createElement('a'); a.href=url; a.download=`warriormic_enhanced_${Date.now()}.webm`; a.click(); setTimeout(()=> URL.revokeObjectURL(url), 3000);
+		}
 		function saveProfile(){alert('💾 Voice Profile Saved!\n\n🎯 Profile includes:\n• Target microphone settings\n• Personal voice characteristics\n• Enhancement preferences\n• Custom EQ curve\n\nThis profile can be used for future recordings and shared across the SOTA ecosystem!')}
 
 		// Integration
@@ -461,7 +547,7 @@
 		function shareEnhancement(){alert('📤 Share Enhancement:\n\n🔗 Generate shareable link\n📧 Email enhanced audio\n💾 Export enhancement settings\n🌐 Upload to SOTA cloud\n📱 Share on social media')}
 
 		// Visual idle animation
-		setInterval(()=>{if(!isEnhancing){document.querySelectorAll('#originalWaveform .waveform-bar').forEach(b=>{b.style.height=(Math.random()*40+20)+'%'});document.querySelectorAll('#enhancedWaveform .waveform-bar').forEach(b=>{b.style.height=(Math.random()*30+60)+'%'});}},500)
+	// Visual idle animation removed; real analyser drives waveform in setupWaveforms()
 
 		// Cloning
 		let selectedVoiceModel='custom1';let isCloning=false;const voiceModels={original:{name:'Original Voice',trained:true},enhanced:{name:'Enhanced Voice',trained:true},custom1:{name:'Clone Model 1',trained:true},custom2:{name:'Clone Model 2',trained:false}};

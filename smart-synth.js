@@ -358,7 +358,7 @@ const AdvancedComposer = () => {
     return FLAT_TO_SHARP[up] || up;
   };
 
-  const KNOWN_FOLDERS = new Set(['bass','drums','guitar','piano','playable realdrums','playable realtracks','strings','synth','woodwind','world']);
+  const KNOWN_FOLDERS = new Set(['bass','drums','guitar','piano','playable realdrums','playable realtracks','strings','synth','woodwind','world','fiddle','violin','banjo','mandolin','steel','keyboard','keys','perc','kit']);
 
   const parseFilename = (fileName, relPath) => {
     // Expected like: Piano_C4.wav or Bass_A#2.mp3
@@ -370,8 +370,22 @@ const AdvancedComposer = () => {
     // Try infer instrument from folder path
     if (relPath) {
       const pathParts = relPath.split(/[/\\]+/).map(p => p.trim().toLowerCase()).filter(Boolean);
-      // pick the first segment that matches known folders
-      const cand = pathParts.find(p => KNOWN_FOLDERS.has(p));
+      // pick the first segment that matches known folders directly
+      let cand = pathParts.find(p => KNOWN_FOLDERS.has(p));
+      // else scan segments for instrument keywords like '111-fiddle'
+      if (!cand) {
+        for (const seg of pathParts) {
+          if (/fiddle|violin/.test(seg)) { cand = 'fiddle'; break; }
+          if (/guitar/.test(seg)) { cand = 'guitar'; break; }
+          if (/piano|keyboard|keys/.test(seg)) { cand = 'piano'; break; }
+          if (/(^|[^a-z])drum(s)?|perc|kit/.test(seg)) { cand = 'drums'; break; }
+          if (/banjo/.test(seg)) { cand = 'banjo'; break; }
+          if (/mandolin/.test(seg)) { cand = 'mandolin'; break; }
+          if (/steel/.test(seg)) { cand = 'steel-guitar'; break; }
+          if (/bass/.test(seg)) { cand = 'bass'; break; }
+          if (/string/.test(seg)) { cand = 'strings'; break; }
+        }
+      }
       if (cand) instrument = cand;
     }
     const parts = base.split(/[_\s-]+/);
@@ -397,7 +411,9 @@ const AdvancedComposer = () => {
         midi = (octave + 1) * 12 + NOTE_NAMES.indexOf(note);
       }
     }
-    return { instrument, midi };
+    // normalize instrument label
+    const instNorm = normalizeInst ? normalizeInst(instrument) : instrument;
+    return { instrument: instNorm, midi };
   };
 
   const decodeFileToAudioBuffer = async (file) => {
@@ -1781,3 +1797,651 @@ const AdvancedComposer = () => {
 };
 
 try { if (typeof window !== 'undefined') window.AdvancedComposer = AdvancedComposer; } catch {}
+
+// ==========================
+// Global SmartSynthAPI (Samples/SF2)
+// ==========================
+(function(){
+  if (typeof window === 'undefined') return;
+  if (window.SmartSynthAPI) return; // don't reinit
+
+  const DB_NAME = 'ComposerSamplesDB';
+  const STORE = 'samples';
+
+  const normalizeInst = (s) => {
+    if (!s) return 'unknown';
+    const x = String(s).toLowerCase();
+    if (x.includes('acoustic') && x.includes('guitar')) return 'guitar';
+    if (x.includes('guitar')) return 'guitar';
+    if (x.includes('fiddle') || x.includes('violin')) return 'fiddle';
+    if (x.includes('piano') || x.includes('keys') || x.includes('keyboard')) return 'piano';
+    if (x.includes('drum') || x.includes('perc') || x.includes('kit')) return 'drums';
+    if (x.includes('banjo')) return 'banjo';
+    if (x.includes('mandolin')) return 'mandolin';
+    if (x.includes('steel')) return 'steel-guitar';
+    if (x.includes('bass')) return 'bass';
+    return x;
+  };
+
+  let soundfontProvider = null; // { getBuffer(instrumentKey, midi, ctx): Promise<AudioBuffer> }
+  const soundfontCache = new Map(); // key: `${instrumentKey}:${midi}:${sr}` -> AudioBuffer
+  function registerSoundfontProvider(provider){ soundfontProvider = provider || null; }
+  // Optional separation provider: split full-mix buffers into stems
+  // Expected interface: { separate(ctx, buffer, want: ['guitar','piano',...]) -> Promise<Record<string, AudioBuffer>> }
+  let separationProvider = null;
+  function registerSeparationProvider(provider){ separationProvider = provider || null; }
+  // Optional encoder provider: external MP3/WAV encoding
+  let encoderProvider = null; // { encodeMp3(AudioBuffer, options?): Promise<Blob>, encodeWav?(AudioBuffer, options?): Promise<Blob> }
+
+  async function separateBuffer(ctx, buffer, want){
+    if (!separationProvider) throw new Error('No separation provider registered');
+    return await separationProvider.separate(ctx, buffer, want || null);
+  }
+
+  // ===============
+  // AudioBuffer -> WAV Blob (PCM16 LE)
+  // ===============
+  function audioBufferToWavBlob(buffer){
+    const numCh = buffer.numberOfChannels || 1;
+    const sampleRate = buffer.sampleRate || 44100;
+    const numFrames = buffer.length || 0;
+    const bytesPerSample = 2; // 16-bit PCM
+    const blockAlign = numCh * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = numFrames * blockAlign;
+    const totalSize = 44 + dataSize;
+    const ab = new ArrayBuffer(totalSize);
+    const view = new DataView(ab);
+    let offset = 0;
+
+    function writeString(s){ for (let i=0;i<s.length;i++) view.setUint8(offset++, s.charCodeAt(i)); }
+
+    // RIFF header
+    writeString('RIFF');
+    view.setUint32(offset, 36 + dataSize, true); offset += 4; // ChunkSize
+    writeString('WAVE');
+    // fmt chunk
+    writeString('fmt ');
+    view.setUint32(offset, 16, true); offset += 4; // Subchunk1Size (PCM)
+    view.setUint16(offset, 1, true); offset += 2;  // AudioFormat (1=PCM)
+    view.setUint16(offset, numCh, true); offset += 2; // NumChannels
+    view.setUint32(offset, sampleRate, true); offset += 4; // SampleRate
+    view.setUint32(offset, byteRate, true); offset += 4; // ByteRate
+    view.setUint16(offset, blockAlign, true); offset += 2; // BlockAlign
+    view.setUint16(offset, 16, true); offset += 2; // BitsPerSample
+    // data chunk
+    writeString('data');
+    view.setUint32(offset, dataSize, true); offset += 4;
+
+    // Interleave samples
+    const chans = [];
+    for (let ch=0; ch<numCh; ch++) chans[ch] = buffer.getChannelData(ch);
+    for (let i=0; i<numFrames; i++){
+      for (let ch=0; ch<numCh; ch++){
+        const s = Math.max(-1, Math.min(1, chans[ch][i] || 0));
+        const v = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        view.setInt16(offset, v, true); offset += 2;
+      }
+    }
+    return new Blob([ab], { type: 'audio/wav' });
+  }
+
+  function idbOpen(){
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      // do not upgrade here; smart-synth.js handles schema
+    });
+  }
+
+  function idbGetAll(db){
+    return new Promise((resolve, reject) => {
+      try {
+        const tx = db.transaction([STORE], 'readonly');
+        const st = tx.objectStore(STORE);
+        const req = st.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      } catch(e){ reject(e); }
+    });
+  }
+
+  function reconstructBuffer(rec, ctx){
+    const buf = ctx.createBuffer(rec.numberOfChannels, rec.length, rec.sampleRate);
+    for (let ch = 0; ch < rec.numberOfChannels; ch++) {
+      const dest = buf.getChannelData(ch);
+      const src = rec.channels[ch] || [];
+      dest.set(src);
+    }
+    return buf;
+  }
+
+  function serializeBuffer(id, midi, buffer, fileName, instrument, tags){
+    const channels = [];
+    for (let i=0;i<buffer.numberOfChannels;i++){
+      channels.push(Array.from(buffer.getChannelData(i)));
+    }
+    return {
+      id,
+      midi,
+      fileName: fileName || `sample-${id}`,
+      instrument: instrument || 'unknown',
+      tags: Array.isArray(tags) ? tags.map(x=>String(x).toLowerCase()) : [],
+      sampleRate: buffer.sampleRate,
+      length: buffer.length,
+      numberOfChannels: buffer.numberOfChannels,
+      channels,
+      timestamp: Date.now()
+    };
+  }
+
+  function idbPut(db, record){
+    return new Promise((resolve, reject)=>{
+      try {
+        const tx = db.transaction([STORE], 'readwrite');
+        const st = tx.objectStore(STORE);
+        const req = st.put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      } catch(e){ reject(e); }
+    });
+  }
+
+  async function getSampleIndex(ctx){
+    const db = await idbOpen();
+    const rows = await idbGetAll(db);
+    const byInst = new Map();
+    const list = [];
+    for (const r of rows){
+      const inst = normalizeInst(r.instrument);
+      const buffer = reconstructBuffer(r, ctx);
+      const meta = { id: r.id, midi: r.midi, instrument: inst, fileName: r.fileName, tags: Array.isArray(r.tags)? r.tags.map(x=>String(x).toLowerCase()) : [], buffer, length: buffer.duration };
+      list.push(meta);
+      if (!byInst.has(inst)) byInst.set(inst, []);
+      byInst.get(inst).push(meta);
+    }
+    return { byInst, list };
+  }
+
+  function nearestByMidi(samples, midi){
+    if (!samples || !samples.length) return null;
+    let best = samples[0], bestD = Infinity;
+    for (const s of samples){
+      const d = Math.abs((s.midi ?? 60) - midi);
+      if (d < bestD){ best = s; bestD = d; }
+    }
+    return best;
+  }
+
+  function scheduleNoteBuffer(ac, dest, buffer, when, gain=0.8, durSec=null, playbackRate=1.0){
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    try { src.playbackRate.value = playbackRate || 1.0; } catch {}
+    const g = ac.createGain();
+    // fast attack to avoid clicks
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), when + 0.005);
+    const naturalDur = (buffer.duration || 0);
+    const effDur = playbackRate && playbackRate !== 0 ? naturalDur / Math.abs(playbackRate) : naturalDur;
+    const stopAt = durSec ? when + durSec : when + effDur;
+    // short release
+    const relStart = Math.max(when, stopAt - 0.008);
+    try { g.gain.setTargetAtTime(0.0001, relStart, 0.004); } catch {}
+    src.connect(g); g.connect(dest);
+    src.start(when);
+    src.stop(stopAt);
+  }
+
+  async function getSF2BufferCached(instrumentKey, midi, ac){
+    if (!soundfontProvider) return null;
+    const sr = ac.sampleRate || 44100;
+    const key = `${instrumentKey}:${midi}:${sr}`;
+    if (soundfontCache.has(key)) return soundfontCache.get(key);
+    const buf = await soundfontProvider.getBuffer(instrumentKey, midi, ac);
+    if (buf) soundfontCache.set(key, buf);
+    return buf;
+  }
+
+  // Simple chord to midi notes (major/minor triads) at base octave
+  function chordToMidis(ch, key='G', baseOct=4){
+    // ch like 'G','D','Em','C'
+    const order=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const m = ch.match(/^([A-G][#b]?)(m)?/i); if (!m) return [67,71,74];
+    let root = m[1].replace('b','#').toUpperCase();
+    const isMin = !!m[2];
+    const idx = order.indexOf(root); if (idx<0) return [67,71,74];
+    const third = isMin? 3:4;
+    const toMidi = (n, oct) => (oct+1)*12 + order.indexOf(n);
+    return [ toMidi(root, baseOct), toMidi(order[(idx+third)%12], baseOct), toMidi(order[(idx+7)%12], baseOct) ];
+  }
+
+  function georgiaProgression(){ return ['G','D','Em','C']; }
+
+  // Round-robin selection across all samples per instrument, with pitch-shift support
+  function rateFromMidi(sampleMidi, targetMidi){
+    const sm = (sampleMidi ?? 60); const tm = (targetMidi ?? 60);
+    const semi = tm - sm; return Math.pow(2, semi/12);
+  }
+
+  let activeStyleTags = [];
+  function setActiveStyleTags(tags){ activeStyleTags = Array.isArray(tags) ? tags.map(x=>String(x).toLowerCase().trim()).filter(Boolean) : []; }
+  function getActiveStyleTags(){ return activeStyleTags.slice(); }
+
+  function filterByTags(list){
+    if (!list || !list.length) return [];
+    if (!activeStyleTags || activeStyleTags.length === 0) return list;
+    const filtered = list.filter(m => Array.isArray(m.tags) && m.tags.some(t => activeStyleTags.includes(String(t).toLowerCase())));
+    return filtered.length ? filtered : list;
+  }
+
+  function makeRoundRobinPicker(byInst){
+    const idx = new Map();
+    return function pick(inst, targetMidi){
+      const list = filterByTags(byInst.get(inst) || []);
+      if (!list.length) return null;
+      const i = idx.get(inst) || 0;
+      const meta = list[i % list.length];
+      idx.set(inst, i + 1);
+      const playbackRate = rateFromMidi(meta.midi, targetMidi);
+      return { buffer: meta.buffer, playbackRate };
+    };
+  }
+
+  function flattenAll(byInst){
+    const out = [];
+    for (const arr of byInst.values()) if (Array.isArray(arr)) out.push(...arr);
+    return out;
+  }
+
+  function makeAnyPicker(byInst){
+    const all = filterByTags(flattenAll(byInst));
+    let i = 0;
+    return function pickAny(targetMidi){
+      if (!all.length) return null;
+      // prefer closest MIDI if available, else round-robin
+      let best = null; let bestD = Infinity;
+      for (const m of all){
+        if (typeof m.midi === 'number'){
+          const d = Math.abs((m.midi??60) - (targetMidi??60));
+          if (d < bestD){ best = m; bestD = d; }
+        }
+      }
+      const meta = best || all[(i++) % all.length];
+      const playbackRate = rateFromMidi(meta.midi, targetMidi);
+      return { buffer: meta.buffer, playbackRate };
+    };
+  }
+
+  async function renderGeorgiaFromSamples(opts={}){
+    const bpm = Number(opts.bpm || 72);
+    const key = opts.key || 'G';
+    const durationSec = Number(opts.durationSec || 60);
+    const sr = 44100, chs = 2;
+    const barSec = 4 * (60 / bpm);
+    const bars = Math.ceil(durationSec / barSec);
+
+    // Load sample index once using a temp Online or provided context
+    const probeCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(chs, sr, sr);
+    const { byInst } = await getSampleIndex(probeCtx);
+    const haveGuitar = (byInst.get('guitar')||[]).length > 0;
+    const haveFiddle = (byInst.get('fiddle')||[]).length > 0;
+    const havePiano = (byInst.get('piano')||[]).length > 0;
+    const haveDrums = (byInst.get('drums')||[]).length > 0;
+
+    if (!(haveGuitar || haveFiddle || havePiano || haveDrums) && !soundfontProvider){
+      throw new Error('No samples in IndexedDB and no SoundFont provider registered');
+    }
+
+    async function renderGuitar(){
+      const ac = new OfflineAudioContext(chs, Math.ceil(sr*durationSec), sr);
+      const bus = ac.createGain(); bus.gain.value = 0.9; bus.connect(ac.destination);
+      const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=4800; lp.Q.value=0.8; lp.connect(bus);
+      const spb = 60/bpm;
+      const chords = georgiaProgression();
+      const pick = makeRoundRobinPicker(byInst);
+      const pickAny = makeAnyPicker(byInst);
+      for (let b=0;b<bars;b++){
+        const base = b*4*spb + 0.05;
+        const ch = chords[b % chords.length];
+        const notes = chordToMidis(ch, key, 3);
+        for (let i=0;i<notes.length;i++){
+          const midi = notes[i];
+          let chosen = null;
+          if (haveGuitar) chosen = pick('guitar', midi);
+          if ((!chosen || !chosen.buffer) && soundfontProvider) {
+            const buf = await getSF2BufferCached('acoustic-guitar', midi, ac);
+            if (buf) chosen = { buffer: buf, playbackRate: 1.0 };
+          }
+          if ((!chosen || !chosen.buffer)) {
+            // Adaptive: borrow any instrument sample
+            chosen = pickAny(midi);
+          }
+          if (!chosen || !chosen.buffer) continue;
+          scheduleNoteBuffer(ac, lp, chosen.buffer, base + i*0.02, 0.85, spb*0.9, chosen.playbackRate || 1.0);
+        }
+      }
+      return ac.startRendering();
+    }
+
+    async function renderFiddle(){
+      const ac = new OfflineAudioContext(chs, Math.ceil(sr*durationSec), sr);
+      const bus = ac.createGain(); bus.gain.value = 0.7; bus.connect(ac.destination);
+      const bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1200; bp.Q.value=1.0; bp.connect(bus);
+      const spb = 60/bpm; const barDur = 4*spb;
+      const chords = georgiaProgression();
+      const pick = makeRoundRobinPicker(byInst);
+      const pickAny = makeAnyPicker(byInst);
+      for (let b=0;b<bars;b++){
+        const base = b*barDur;
+        const ch = chords[b % chords.length];
+        const sel = chordToMidis(ch, key, 4)[1]; // take third as melody
+        let chosen = null;
+        if (haveFiddle) chosen = pick('fiddle', sel);
+        if ((!chosen || !chosen.buffer) && soundfontProvider) {
+          const buf = await getSF2BufferCached('fiddle', sel, ac);
+          if (buf) chosen = { buffer: buf, playbackRate: 1.0 };
+        }
+        if ((!chosen || !chosen.buffer)) {
+          // Adaptive: borrow any sustained source
+          chosen = pickAny(sel);
+        }
+        if (!chosen || !chosen.buffer) continue;
+        scheduleNoteBuffer(ac, bp, chosen.buffer, base+0.02, 0.7, Math.min(barDur*0.95, 3.2), chosen.playbackRate || 1.0);
+      }
+      return ac.startRendering();
+    }
+
+    async function renderPiano(){
+      const ac = new OfflineAudioContext(chs, Math.ceil(sr*durationSec), sr);
+      const bus = ac.createGain(); bus.gain.value = 0.8; bus.connect(ac.destination);
+      const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=5600; lp.connect(bus);
+      const spb = 60/bpm;
+      const chords = georgiaProgression();
+      const pick = makeRoundRobinPicker(byInst);
+      const pickAny = makeAnyPicker(byInst);
+      for (let b=0;b<bars;b++){
+        const base = b*4*spb;
+        const ch = chords[b % chords.length];
+        const tri = chordToMidis(ch, key, 4);
+        for (let i=0;i<tri.length;i++){
+          const midi = tri[i];
+          let chosen = null;
+          if (havePiano) chosen = pick('piano', midi);
+          if ((!chosen || !chosen.buffer) && soundfontProvider) {
+            const buf = await getSF2BufferCached('piano', midi, ac);
+            if (buf) chosen = { buffer: buf, playbackRate: 1.0 };
+          }
+          if ((!chosen || !chosen.buffer)) {
+            // Adaptive: borrow any instrument sample
+            chosen = pickAny(midi);
+          }
+          if (!chosen || !chosen.buffer) continue;
+          scheduleNoteBuffer(ac, lp, chosen.buffer, base + i*0.01, 0.75, spb*0.9, chosen.playbackRate || 1.0);
+        }
+      }
+      return ac.startRendering();
+    }
+
+    async function renderDrums(){
+      const ac = new OfflineAudioContext(chs, Math.ceil(sr*durationSec), sr);
+      const bus = ac.createGain(); bus.gain.value = 0.8; bus.connect(ac.destination);
+      const spb = 60/bpm; const barDur = 4*spb; const chords = georgiaProgression();
+      // Try to find a longer drum loop sample and tile it; else use SF2 GM drums (36/38/42)
+      const loops = haveDrums ? byInst.get('drums').slice() : [];
+      // Round-robin through all drum samples (ordered by length desc) if present
+      if (loops.length){
+        loops.sort((a,b)=>b.length-a.length);
+        let t = 0; let idx=0;
+        while (t < durationSec){
+          const s = loops[idx % loops.length];
+          const segLen = Math.min(s.length, durationSec - t);
+          scheduleNoteBuffer(ac, bus, s.buffer, t, 0.9, segLen, 1.0);
+          t += segLen;
+          idx++;
+        }
+      } else if (soundfontProvider){
+        // Basic pattern using GM drums via provider
+        const kickBuf = await getSF2BufferCached('drumset', 36, ac);
+        const snareBuf = await getSF2BufferCached('drumset', 38, ac);
+        const hatBuf = await getSF2BufferCached('drumset', 42, ac);
+        for (let b=0;b<bars;b++){
+          const base = b*barDur;
+          // 1/2/3/4 beats: kick 1+3 (36), snare 2+4(38), hats eighths (42)
+          if (hatBuf) for (let i=0;i<8;i++) scheduleNoteBuffer(ac, bus, hatBuf, base + i*(spb*0.5), 0.3, 0.08, 1.0);
+          if (kickBuf) scheduleNoteBuffer(ac, bus, kickBuf, base+0, 0.9, 0.18, 1.0);
+          if (snareBuf) scheduleNoteBuffer(ac, bus, snareBuf, base+spb, 0.8, 0.16, 1.0);
+          if (kickBuf) scheduleNoteBuffer(ac, bus, kickBuf, base+2*spb, 0.9, 0.18, 1.0);
+          if (snareBuf) scheduleNoteBuffer(ac, bus, snareBuf, base+3*spb, 0.8, 0.16, 1.0);
+        }
+      } else {
+        // Adaptive percussive pattern from any samples
+        const pickAny = makeAnyPicker(byInst);
+        const hpf = ac.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=6000; hpf.Q.value=0.7; hpf.connect(bus);
+        for (let b=0;b<bars;b++){
+          const base = b*barDur;
+          for (let i=0;i<8;i++){
+            const evT = base + i*(spb*0.5);
+            const chosen = pickAny(84); // around A5 for bright hat-like
+            if (chosen && chosen.buffer) scheduleNoteBuffer(ac, hpf, chosen.buffer, evT, 0.25, 0.06, chosen.playbackRate || 1.0);
+          }
+        }
+      }
+      return ac.startRendering();
+    }
+
+    // If critical instruments are absent in library and no SF2, optionally try separation
+    const need = [];
+    if (!haveGuitar && !soundfontProvider) need.push('guitar');
+    if (!haveFiddle && !soundfontProvider) need.push('fiddle');
+    if (!havePiano && !soundfontProvider) need.push('piano');
+    if (!haveDrums && !soundfontProvider) need.push('drums');
+
+    let sepStems = null;
+    if (separationProvider && need.length){
+      try {
+        // Build a quick "guide" buffer from any library samples as a cue for the separator (optional)
+        // For now, call with want list only; provider decides strategy
+        const ctxTmp = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(chs, sr, sr);
+        sepStems = await separationProvider.separate(ctxTmp, null, need);
+      } catch(e){ console.warn('Separation provider failed', e); }
+    }
+
+    const [guitar, fiddle, piano, drums] = await Promise.all([
+      renderGuitar().catch(()=> sepStems?.guitar || null),
+      renderFiddle().catch(()=> sepStems?.fiddle || null),
+      renderPiano().catch(()=> sepStems?.piano || null),
+      renderDrums().catch(()=> sepStems?.drums || null)
+    ]);
+    return { guitar, fiddle, piano, drums };
+  }
+
+  window.SmartSynthAPI = {
+    registerSoundfontProvider,
+    registerSeparationProvider,
+    separateBuffer,
+    getSampleIndex,
+    renderGeorgiaFromSamples,
+    setActiveStyleTags,
+    getActiveStyleTags,
+    hasSoundfontProvider(){ return !!soundfontProvider; },
+    hasSeparationProvider(){ return !!separationProvider; },
+    // ==========================
+    // Encoder Provider (MP3/WAV export)
+    // ==========================
+    registerEncoderProvider(provider){
+      // provider can expose: encodeMp3(AudioBuffer, options?) -> Promise<Blob>, optional encodeWav(AudioBuffer)
+      encoderProvider = provider;
+    },
+    hasEncoderProvider(){ return !!encoderProvider; },
+    async encodeBufferTo(buffer, format='mp3', options={}){
+      // If an external encoder is available and format is mp3, delegate.
+      if (format === 'mp3' && encoderProvider && typeof encoderProvider.encodeMp3 === 'function'){
+        try { return await encoderProvider.encodeMp3(buffer, options); } catch(e){ console.warn('MP3 encode via provider failed, falling back to WAV', e); }
+      }
+      // Fallback: WAV encoding (44.1kHz PCM 16-bit little-endian)
+      const wavBlob = audioBufferToWavBlob(buffer);
+      if (format === 'wav') return wavBlob;
+      // If format requested mp3 but no provider, return WAV and let caller name extension accordingly
+      return wavBlob;
+    },
+  // Utility to check presence from UI
+  audioBufferToWavBlob,
+    // Import a large sample library from a JSON manifest: [{ url, instrument, midi, fileName? }]
+    // Options: { concurrency=4, max=Infinity, onProgress?(processed,total) }
+    async syncFromManifest(manifestUrl, opts={}){
+      const concurrency = Math.max(1, Math.min(16, opts.concurrency || 4));
+      const max = isFinite(opts.max) ? opts.max : Infinity;
+      const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+      const res = await fetch(manifestUrl, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Manifest fetch failed: ${res.status}`);
+      const list = await res.json();
+      if (!Array.isArray(list)) throw new Error('Manifest must be an array');
+      const total = Math.min(list.length, max);
+      const db = await idbOpen();
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      let processed = 0, failed = 0;
+
+      function notify(){
+        try {
+          window.dispatchEvent(new CustomEvent('SmartSynthSyncProgress', { detail: { processed, total, failed } }));
+        } catch {}
+        if (onProgress) { try { onProgress(processed, total, failed); } catch {} }
+      }
+
+      const queue = list.slice(0, total);
+      let index = 0;
+      async function worker(){
+        while (true){
+          const i = index; index++;
+          if (i >= total) break;
+          const item = queue[i];
+          try {
+            const r = await fetch(item.url);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const ab = await r.arrayBuffer();
+            const buf = await ctx.decodeAudioData(ab.slice(0));
+            const id = `${item.fileName || item.url}-${Date.now()}-${i}`;
+            const rec = serializeBuffer(id, item.midi ?? 60, buf, item.fileName || undefined, item.instrument || 'unknown', Array.isArray(item.tags)? item.tags : []);
+            await idbPut(db, rec);
+            processed++;
+          } catch(e){
+            failed++; console.warn('Sync import failed:', item?.url, e);
+          }
+          notify();
+        }
+      }
+      const workers = Array.from({length: concurrency}, ()=>worker());
+      await Promise.all(workers);
+      try { await ctx.close?.(); } catch {}
+      return { processed, failed, total };
+    },
+    async getLibrarySummary(){
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const { byInst, list } = await getSampleIndex(ctx);
+      try { await ctx.close?.(); } catch {}
+      const keys = ['guitar','fiddle','piano','drums','bass','banjo','mandolin','steel-guitar','strings','synth'];
+      const counts = Object.fromEntries(keys.map(k => [k, (byInst.get(k) || []).length]));
+      counts.total = list.length;
+      return counts;
+    },
+    // ==========================
+    // SmartClone: derive note-level samples from a buffer/file
+    // ==========================
+    async cloneInstrumentFromFile(file, instrument='unknown', opts={}){
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const ab = await (file.arrayBuffer ? file.arrayBuffer() : Promise.resolve(file));
+      const buffer = await ctx.decodeAudioData(ab.slice(0));
+      const res = await this.cloneInstrumentFromBuffer(buffer, instrument, opts);
+      try { await ctx.close?.(); } catch {}
+      return res;
+    },
+    async cloneInstrumentFromBuffer(buffer, instrument='unknown', opts={}){
+      const db = await idbOpen();
+      const sr = buffer.sampleRate;
+      const channels = buffer.numberOfChannels;
+      // Downmix mono for analysis
+      const n = buffer.length;
+      const mono = new Float32Array(n);
+      for (let ch=0; ch<channels; ch++){
+        const d = buffer.getChannelData(ch);
+        for (let i=0;i<n;i++) mono[i] += d[i];
+      }
+      for (let i=0;i<n;i++) mono[i] /= Math.max(1, channels);
+
+      // Frame-based RMS for onset detection
+      const frame = opts.frameSize || 2048;
+      const hop = opts.hopSize || 1024;
+      const rms = [];
+      for (let i=0;i+frame<=mono.length;i+=hop){
+        let sum=0; for (let j=0;j<frame;j++){ const v=mono[i+j]; sum+=v*v; }
+        rms.push(Math.sqrt(sum/frame));
+      }
+      const rmsSorted = rms.slice().sort((a,b)=>a-b);
+      const med = rmsSorted[Math.floor(rmsSorted.length*0.5)] || 0.0001;
+      const thrOn = Math.max(0.02, med * 1.6);
+      const thrOff = Math.max(0.015, med * 1.2);
+      const minDurSec = opts.minSegmentSec || 0.08; // avoid spurious
+      const minGapSec = opts.minGapSec || 0.03;
+
+      const segments = [];
+      let inSeg = false; let segStart = 0; let lastOnset = -1e9;
+      for (let f=0; f<rms.length; f++){
+        const t = f * (hop/sr);
+        const val = rms[f];
+        if (!inSeg && val >= thrOn && (t - lastOnset) > minGapSec){ inSeg = true; segStart = t; lastOnset = t; }
+        if (inSeg && val < thrOff){
+          const segEnd = t;
+          if ((segEnd - segStart) >= minDurSec) segments.push({ start: segStart, end: segEnd });
+          inSeg = false;
+        }
+      }
+      if (inSeg){ const t = rms.length*(hop/sr); if ((t - segStart) >= minDurSec) segments.push({ start: segStart, end: t }); }
+
+      function midiFromFreq(freq){ if (!freq || !isFinite(freq) || freq<=0) return null; return Math.round(69 + 12*Math.log2(freq/440)); }
+      function estimateFreqAC(data, sr){
+        // Basic autocorrelation pitch; use central slice to reduce attacks
+        const len = data.length; if (len < 512) return null;
+        const maxLag = Math.floor(sr/40), minLag = Math.floor(sr/1000); // 40..1000 Hz
+        let bestLag = 0, best = 0;
+        for (let lag=minLag; lag<=maxLag; lag++){
+          let sum = 0;
+          for (let i=0; i+lag<len; i++) sum += data[i]*data[i+lag];
+          if (sum > best){ best = sum; bestLag = lag; }
+        }
+        if (!bestLag) return null;
+        return sr / bestLag;
+      }
+      function sliceBuffer(buf, startSec, endSec){
+        const s = Math.max(0, Math.floor(startSec*buf.sampleRate));
+        const e = Math.min(buf.length, Math.floor(endSec*buf.sampleRate));
+        const out = new AudioBuffer({ length: Math.max(1, e-s), sampleRate: buf.sampleRate, numberOfChannels: buf.numberOfChannels });
+        for (let ch=0; ch<buf.numberOfChannels; ch++){
+          out.getChannelData(ch).set(buf.getChannelData(ch).slice(s, e));
+        }
+        return out;
+      }
+
+      let saved = 0; const savedIds = [];
+      for (const seg of segments){
+        const segLen = Math.max(1, Math.floor((seg.end - seg.start)*sr));
+        if (segLen < 256) continue;
+        // pick analysis window within segment, avoiding leading transient
+        const anaStart = seg.start + Math.min(0.02, Math.max(0, (seg.end - seg.start)*0.1));
+        const anaEnd = Math.min(seg.end, anaStart + 0.08);
+        const sIdx = Math.max(0, Math.floor(anaStart*sr));
+        const eIdx = Math.min(mono.length, Math.floor(anaEnd*sr));
+        if (eIdx <= sIdx+128) continue;
+        const freq = estimateFreqAC(mono.slice(sIdx, eIdx), sr);
+        const midi = midiFromFreq(freq);
+        if (midi == null) continue;
+        const segBuf = sliceBuffer(buffer, seg.start, seg.end);
+        const id = `${instrument}-${midi}-${Date.now()}-${saved}`;
+        const rec = serializeBuffer(id, midi, segBuf, `${instrument}_${midi}.wav`, instrument, Array.isArray(opts.tags) ? opts.tags : []);
+        await idbPut(db, rec);
+        saved++; savedIds.push(id);
+      }
+      return { savedCount: saved, segmentCount: segments.length, savedIds };
+    }
+  };
+})();
